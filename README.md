@@ -26,7 +26,7 @@ pnpm add load-oxfmt-config
 ```ts
 import { loadOxfmtConfig } from 'load-oxfmt-config'
 
-const config = loadOxfmtConfig({
+const config = await loadOxfmtConfig({
   cwd: '/configs',
 })
 
@@ -35,9 +35,29 @@ console.log({ config })
 
 ## Options
 
-- `configPath?: string` Path to the oxfmt config file, resolved relative to `cwd`.
-- `cwd?: string` Current working directory used when searching for config files. Defaults to `process.cwd()`.
-- `useCache?: boolean` Enable in-memory caching for path resolution and parsed config contents. Defaults to `true`.
+### configPath
+
+**Type**: `string`\
+**Required**: `false`\
+**Default**: `undefined`
+
+Path to the oxfmt config file, resolved relative to `cwd`.
+
+### cwd
+
+**Type**: `string`\
+**Required**: `false`\
+**Default**: `process.cwd()`
+
+Current working directory used when searching for config files.
+
+### useCache
+
+**Type**: `boolean`\
+**Required**: `false`\
+**Default**: `true`
+
+Enable in-memory caching for path resolution and parsed config contents.
 
 ## License
 

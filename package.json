@@ -2,7 +2,7 @@
   "name": "load-oxfmt-config",
   "type": "module",
   "version": "0.0.1",
-  "packageManager": "pnpm@10.26.1",
+  "packageManager": "pnpm@10.26.2",
   "description": "Load .oxfmtrc.json(c) for oxfmt.",
   "keywords": [
     "jsonc-parser",
