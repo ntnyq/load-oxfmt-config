@@ -3,10 +3,11 @@ import { join } from 'node:path'
 import process from 'node:process'
 import { parse as parseJSONC } from 'jsonc-parser'
 import { OXFMT_CONFIG_FILES } from './constants'
-import type { Options, OxfmtConfig } from './types'
+import type { FormatOptions } from 'oxfmt'
+import type { Options } from './types'
 
 const resolveCache = new Map<string, Promise<string | undefined>>()
-const configCache = new Map<string, Promise<OxfmtConfig>>()
+const configCache = new Map<string, Promise<FormatOptions>>()
 
 /**
  * Load oxfmt configuration by resolving the config file path and parsing its contents.
@@ -14,7 +15,7 @@ const configCache = new Map<string, Promise<OxfmtConfig>>()
  */
 export async function loadOxfmtConfig(
   options: Options = {},
-): Promise<OxfmtConfig> {
+): Promise<FormatOptions> {
   const useCache = options.useCache !== false
   const cwd = options.cwd || process.cwd()
   const resolveKey = getResolveCacheKey(cwd, options.configPath)
@@ -127,11 +128,13 @@ function getResolveCacheKey(cwd: string, configPath?: string) {
   return `${cwd}::${configPath || ''}`
 }
 
-async function readConfigFromFile(resolvedPath: string): Promise<OxfmtConfig> {
+async function readConfigFromFile(
+  resolvedPath: string,
+): Promise<FormatOptions> {
   const content = await readFile(resolvedPath, 'utf-8')
 
   if (resolvedPath.endsWith('.jsonc')) {
-    return parseJSONC(content) as OxfmtConfig
+    return parseJSONC(content) as FormatOptions
   }
-  return JSON.parse(content) as OxfmtConfig
+  return JSON.parse(content) as FormatOptions
 }

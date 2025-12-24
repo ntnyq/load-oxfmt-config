@@ -50,6 +50,9 @@
     "test": "vitest",
     "typecheck": "tsc --noEmit"
   },
+  "peerDependencies": {
+    "oxfmt": "^0.20.0"
+  },
   "dependencies": {
     "jsonc-parser": "^3.3.1"
   },
@@ -63,6 +66,7 @@
     "husky": "^9.1.7",
     "nano-staged": "^0.9.0",
     "npm-run-all2": "^8.0.4",
+    "oxfmt": "^0.20.0",
     "prettier": "^3.7.4",
     "tsdown": "^0.18.2",
     "typescript": "^5.9.3",
