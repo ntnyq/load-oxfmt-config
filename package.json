@@ -1,7 +1,7 @@
 {
   "name": "load-oxfmt-config",
   "type": "module",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "packageManager": "pnpm@10.27.0",
   "description": "Load .oxfmtrc.json(c) for oxfmt.",
   "keywords": [
