@@ -55,6 +55,17 @@ describe('resolveOxfmtrcPath', () => {
 
     expect(resolved).toBeUndefined()
   })
+
+  it('returns absolute configPath unchanged', async () => {
+    const cwd = await createTempDir()
+    const absoluteConfig = join(cwd, '.oxfmtrc.json')
+
+    await writeFile(absoluteConfig, '{}')
+
+    const resolved = await resolveOxfmtrcPath(cwd, absoluteConfig)
+
+    expect(resolved).toBe(absoluteConfig)
+  })
 })
 
 describe('loadOxfmtConfig', () => {
@@ -141,5 +152,17 @@ describe('loadOxfmtConfig', () => {
     const fresh = await loadOxfmtConfig({ configPath, cwd, useCache: false })
 
     expect(fresh).toEqual({ tabWidth: 4, useTabs: true })
+  })
+
+  it('loads config using absolute configPath', async () => {
+    const cwd = await createTempDir()
+    const absoluteConfig = join(cwd, '.oxfmtrc.json')
+    const configContent = { semi: false, tabWidth: 2 }
+
+    await writeFile(absoluteConfig, JSON.stringify(configContent))
+
+    const config = await loadOxfmtConfig({ configPath: absoluteConfig, cwd })
+
+    expect(config).toEqual(configContent)
   })
 })
