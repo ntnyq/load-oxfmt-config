@@ -193,7 +193,7 @@ JSON with comments support:
   /* Code style preferences */
   "useTabs": false,
   "semi": true,
-  "singleQuote": true,
+  "singleQuote": true
 }
 ```
 
