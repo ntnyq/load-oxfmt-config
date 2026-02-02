@@ -118,8 +118,6 @@ Resolve the absolute path to oxfmt config file.
 
 ## Options
 
-## Options
-
 All options are optional.
 
 ### `cwd`
