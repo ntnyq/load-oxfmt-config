@@ -3,21 +3,20 @@ import { isAbsolute, join } from 'node:path'
 import process from 'node:process'
 import { parse as parseJSONC } from 'jsonc-parser'
 import { OXFMT_CONFIG_FILES } from './constants'
-import type { FormatOptions } from 'oxfmt'
-import type { Options } from './types'
+import type { Options, OxfmtOptions } from './types'
 
 // Cache resolved config paths keyed by cwd + configPath
 const resolveCache = new Map<string, Promise<string | undefined>>()
 
 // Cache parsed config objects keyed by resolvedPath + resolveKey
-const configCache = new Map<string, Promise<FormatOptions>>()
+const configCache = new Map<string, Promise<OxfmtOptions>>()
 
 /**
  * Load oxfmt configuration: resolve the file path, then read and parse it.
  * Caching is enabled by default; pass `useCache: false` to force a re-read.
  *
  * @param options - Optional loader settings (cwd, configPath, useCache).
- * @returns Parsed oxfmt FormatOptions or an empty object when missing.
+ * @returns Parsed oxfmt OxfmtOptions or an empty object when missing.
  * @throws {Error} when the config file exists but cannot be parsed.
  *
  * @example
@@ -27,7 +26,7 @@ const configCache = new Map<string, Promise<FormatOptions>>()
  */
 export async function loadOxfmtConfig(
   options: Options = {},
-): Promise<FormatOptions> {
+): Promise<OxfmtOptions> {
   const useCache = options.useCache !== false
   const cwd = options.cwd || process.cwd()
   const resolveKey = getResolveCacheKey(cwd, options.configPath)
@@ -171,15 +170,13 @@ function getResolveCacheKey(cwd: string, configPath?: string) {
  * Read and parse config file, supporting JSON and JSONC.
  *
  * @param resolvedPath - Absolute path to the config file.
- * @returns Parsed FormatOptions object.
+ * @returns Parsed OxfmtOptions object.
  */
-async function readConfigFromFile(
-  resolvedPath: string,
-): Promise<FormatOptions> {
+async function readConfigFromFile(resolvedPath: string): Promise<OxfmtOptions> {
   const content = await readFile(resolvedPath, 'utf-8')
 
   if (resolvedPath.endsWith('.jsonc')) {
-    return parseJSONC(content) as FormatOptions
+    return parseJSONC(content) as OxfmtOptions
   }
-  return JSON.parse(content) as FormatOptions
+  return JSON.parse(content) as OxfmtOptions
 }
