@@ -18,7 +18,7 @@ afterEach(async () => {
   )
 })
 
-describe('resolveOxfmtrcPath', () => {
+describe(resolveOxfmtrcPath, () => {
   it('uses explicit configPath relative to cwd', async () => {
     const cwd = await createTempDir()
     const configPath = '.oxfmtrc.json'
@@ -68,7 +68,7 @@ describe('resolveOxfmtrcPath', () => {
   })
 })
 
-describe('loadOxfmtConfig', () => {
+describe(loadOxfmtConfig, () => {
   it('returns empty object when config is missing', async () => {
     const cwd = await createTempDir()
 

@@ -1,0 +1,168 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "eslint",
+    "import",
+    "jsdoc",
+    "node",
+    "promise",
+    "oxc",
+    "typescript",
+    "unicorn"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "pedantic": "warn",
+    "perf": "warn",
+    "style": "warn",
+    "restriction": "warn",
+    "nursery": "warn"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/tests/fixtures/**"
+  ],
+  "rules": {
+    "capitalized-comments": "off",
+    "no-async-await": "off",
+    "no-await-in-loop": "off",
+    "no-continue": "off",
+    "no-inline-comments": "off",
+    "no-plusplus": "off",
+    "no-ternary": "off",
+    "no-undefined": "off",
+    "prefer-destructuring": "off",
+    "sort-imports": "off",
+    "sort-keys": "off",
+    // Plugin oxc: we turn off some rules that may be too strict or not suitable for our codebase
+    "oxc/no-optional-chaining": "off",
+    "oxc/no-rest-spread-properties": "off",
+    // Plugin import: we turn off some rules that may be too strict or not suitable for our codebase
+    "import/exports-last": "off",
+    "import/group-exports": "off",
+    "import/prefer-default-export": "off",
+    "import/no-named-export": "off",
+    "import/no-nodejs-modules": "off",
+    "import/no-relative-parent-imports": "off",
+    // Plugin jsdoc: we use typescript's type annotations, so we don't need redundant JSDoc types
+    "jsdoc/require-param-type": "off",
+    "jsdoc/require-returns-type": "off",
+    // Plugin promise: we prefer async/await syntax, so we turn off rules that enforce using .then() and .catch()
+    "promise/prefer-await-to-then": "off",
+    "promise/prefer-await-to-callbacks": "off",
+    // Plugin unicorn: we turn off some stylistic rules that may be too strict or not suitable for our codebase
+    "unicorn/explicit-length-check": "off",
+    "unicorn/filename-case": "off",
+    "unicorn/numeric-separators-style": "off",
+    "unicorn/no-null": "off",
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-array-for-each": "off",
+    "unicorn/no-array-reverse": "off",
+    "unicorn/no-useless-undefined": "off",
+    "unicorn/prefer-at": "off",
+    "unicorn/prefer-spread": "off",
+    "unicorn/prefer-ternary": "off",
+    "unicorn/prefer-global-this": "off",
+    "unicorn/relative-url-style": "off",
+    "unicorn/switch-case-braces": "off",
+    // Plugin typescript: we turn off some rules that may be too strict or not suitable for our codebase
+    "typescript/explicit-function-return-type": "off",
+    "typescript/explicit-module-boundary-types": "off",
+    "complexity": ["warn", { "max": 50 }],
+    "func-style": [
+      "warn",
+      "declaration",
+      { "allowArrowFunctions": true, "allowTypeAnnotation": true }
+    ],
+    "id-length": [
+      "warn",
+      {
+        "min": 2,
+        "exceptions": [
+          "a",
+          "b",
+          "c",
+          "i",
+          "j",
+          "t",
+          "v",
+          "x",
+          "y",
+          "_",
+          "$",
+          "T",
+          "K"
+        ]
+      }
+    ],
+    "max-params": ["warn", 5],
+    "max-statements": ["warn", 50],
+    "max-lines-per-function": [
+      "warn",
+      { "max": 200, "skipBlankLines": true, "skipComments": true }
+    ],
+    "no-duplicate-imports": [
+      "warn",
+      {
+        "allowSeparateTypeImports": true,
+        "includeExports": false
+      }
+    ],
+    "no-magic-numbers": [
+      "warn",
+      {
+        "ignore": [-1, 0, 1],
+        "ignoreArrayIndexes": true,
+        "ignoreClassFieldInitialValues": true,
+        "ignoreDefaultValues": true,
+        "ignoreTypeIndexes": true
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["scripts/**/*.{js,ts}"],
+      "rules": {
+        "no-console": "off",
+        "import/no-nodejs-modules": "off"
+      }
+    },
+    {
+      "files": ["**/*.config.{js,ts,mjs,mts}"],
+      "rules": {
+        "import/no-default-export": "off",
+        "import/no-nodejs-modules": "off"
+      }
+    },
+    {
+      "files": ["*.d.ts"],
+      "rules": {
+        // to extend existing modules, import/export must not appear in declaration files at top level
+        "import/unambiguous": "off",
+        // we need `export {}` to convert a file to a module
+        "unicorn/require-module-specifiers": "off"
+      }
+    },
+    {
+      "files": ["*.{spec,test}.{js,ts,tsx}", "*.{spec,test}-d.{ts,tsx}"],
+      "plugins": ["vitest"],
+      "rules": {
+        "id-length": "off",
+        "max-classes-per-file": "off",
+        "max-lines-per-function": "off",
+        "max-lines": "off",
+        "max-statements": "off",
+        "no-empty-function": "off",
+        "no-undefined": "off",
+        "import/no-nodejs-modules": "off",
+        "typescript/ban-ts-comment": "off",
+        "typescript/no-non-null-assertion": "off",
+        "typescript/prefer-ts-expect-error": "off",
+        "typescript/require-array-sort-compare": "off",
+        "vitest/no-importing-vitest-globals": "off"
+      }
+    }
+  ]
+}

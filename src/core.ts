@@ -12,62 +12,44 @@ const resolveCache = new Map<string, Promise<string | undefined>>()
 const configCache = new Map<string, Promise<OxfmtOptions>>()
 
 /**
- * Load oxfmt configuration: resolve the file path, then read and parse it.
- * Caching is enabled by default; pass `useCache: false` to force a re-read.
+ * Return a cached promise by key, creating and storing it on miss; failures clear the entry.
  *
- * @param options - Optional loader settings (cwd, configPath, useCache).
- * @returns Parsed oxfmt OxfmtOptions or an empty object when missing.
- * @throws {Error} when the config file exists but cannot be parsed.
- *
- * @example
- * ```ts
- * const config = await loadOxfmtConfig({ cwd: '/project' })
- * ```
+ * @param cache - Map used to store inflight/resolved promises.
+ * @param key - Cache key.
+ * @param factory - Factory to create the promise when missing.
+ * @returns Cached or newly created promise.
  */
-export async function loadOxfmtConfig(
-  options: Options = {},
-): Promise<OxfmtOptions> {
-  const useCache = options.useCache !== false
-  const cwd = options.cwd || process.cwd()
-  const resolveKey = getResolveCacheKey(cwd, options.configPath)
-
-  const resolvedPath = useCache
-    ? await cachePromise(resolveCache, resolveKey, () =>
-        resolveOxfmtrcPath(cwd, options.configPath),
-      )
-    : await resolveOxfmtrcPath(cwd, options.configPath)
-
-  if (!resolvedPath) {
-    if (!useCache) {
-      return {}
-    }
-
-    return cachePromise(
-      configCache,
-      getConfigCacheKey(resolvedPath, resolveKey),
-      () => Promise.resolve({}),
-    )
+function cachePromise<T>(
+  cache: Map<string, Promise<T>>,
+  key: string,
+  factory: () => Promise<T>,
+) {
+  const cached = cache.get(key)
+  if (cached) {
+    return cached
   }
 
-  const loadTask = () =>
-    readConfigFromFile(resolvedPath).catch(err => {
-      throw new Error(
-        `Failed to parse oxfmt configuration file at ${resolvedPath}: ${err instanceof Error ? err.message : String(err)}`,
-        {
-          cause: err,
-        },
-      )
-    })
+  const task = factory().catch(error => {
+    cache.delete(key)
+    throw error
+  })
 
-  if (!useCache) {
-    return loadTask()
-  }
+  cache.set(key, task)
+  return task
+}
 
-  return cachePromise(
-    configCache,
-    getConfigCacheKey(resolvedPath, resolveKey),
-    loadTask,
-  )
+/**
+ * Build a cache key for config content; prefixes missing entries with `missing:`.
+ *
+ * @param resolvedPath - Resolved config path or undefined when missing.
+ * @param resolveKey - Key used for path resolution caching.
+ * @returns Cache key for config content.
+ */
+function getConfigCacheKey(
+  resolvedPath: string | undefined,
+  resolveKey: string,
+) {
+  return resolvedPath || `missing:${resolveKey}`
 }
 
 /**
@@ -115,47 +97,6 @@ export async function resolveOxfmtrcPath(
 }
 
 /**
- * Return a cached promise by key, creating and storing it on miss; failures clear the entry.
- *
- * @param cache - Map used to store inflight/resolved promises.
- * @param key - Cache key.
- * @param factory - Factory to create the promise when missing.
- * @returns Cached or newly created promise.
- */
-function cachePromise<T>(
-  cache: Map<string, Promise<T>>,
-  key: string,
-  factory: () => Promise<T>,
-) {
-  const cached = cache.get(key)
-  if (cached) {
-    return cached
-  }
-
-  const task = factory().catch(err => {
-    cache.delete(key)
-    throw err
-  })
-
-  cache.set(key, task)
-  return task
-}
-
-/**
- * Build a cache key for config content; prefixes missing entries with `missing:`.
- *
- * @param resolvedPath - Resolved config path or undefined when missing.
- * @param resolveKey - Key used for path resolution caching.
- * @returns Cache key for config content.
- */
-function getConfigCacheKey(
-  resolvedPath: string | undefined,
-  resolveKey: string,
-) {
-  return resolvedPath || `missing:${resolveKey}`
-}
-
-/**
  * Build a cache key for path resolution (cwd + configPath).
  *
  * @param cwd - Current working directory.
@@ -173,10 +114,69 @@ function getResolveCacheKey(cwd: string, configPath?: string) {
  * @returns Parsed OxfmtOptions object.
  */
 async function readConfigFromFile(resolvedPath: string): Promise<OxfmtOptions> {
-  const content = await readFile(resolvedPath, 'utf-8')
+  const content = await readFile(resolvedPath, 'utf8')
 
   if (resolvedPath.endsWith('.jsonc')) {
     return parseJSONC(content) as OxfmtOptions
   }
   return JSON.parse(content) as OxfmtOptions
+}
+
+/**
+ * Load oxfmt configuration: resolve the file path, then read and parse it.
+ * Caching is enabled by default; pass `useCache: false` to force a re-read.
+ *
+ * @param options - Optional loader settings (cwd, configPath, useCache).
+ * @returns Parsed oxfmt OxfmtOptions or an empty object when missing.
+ * @throws {Error} when the config file exists but cannot be parsed.
+ *
+ * @example
+ * ```ts
+ * const config = await loadOxfmtConfig({ cwd: '/project' })
+ * ```
+ */
+export async function loadOxfmtConfig(
+  options: Options = {},
+): Promise<OxfmtOptions> {
+  const useCache = options.useCache !== false
+  const cwd = options.cwd || process.cwd()
+  const resolveKey = getResolveCacheKey(cwd, options.configPath)
+
+  const resolvedPath = useCache
+    ? await cachePromise(resolveCache, resolveKey, () =>
+        resolveOxfmtrcPath(cwd, options.configPath),
+      )
+    : await resolveOxfmtrcPath(cwd, options.configPath)
+
+  if (!resolvedPath) {
+    if (!useCache) {
+      return {}
+    }
+
+    return cachePromise(
+      configCache,
+      getConfigCacheKey(resolvedPath, resolveKey),
+      () => Promise.resolve({}),
+    )
+  }
+
+  const loadTask = () =>
+    readConfigFromFile(resolvedPath).catch(error => {
+      throw new Error(
+        `Failed to parse oxfmt configuration file at ${resolvedPath}: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          cause: error,
+        },
+      )
+    })
+
+  if (!useCache) {
+    return loadTask()
+  }
+
+  return cachePromise(
+    configCache,
+    getConfigCacheKey(resolvedPath, resolveKey),
+    loadTask,
+  )
 }
