@@ -5,15 +5,20 @@
   "bracketSpacing": true,
   "embeddedLanguageFormatting": "auto",
   "endOfLine": "lf",
-  "sortPackageJson": false,
+  "sortImports": {
+    "newlinesBetween": false,
+  },
+  "sortPackageJson": {
+    "sortScripts": true,
+  },
   "htmlWhitespaceSensitivity": "css",
   "ignorePatterns": [
     "**/node_modules/**",
-    "**/dist/**",
     "pnpm-lock.yaml",
     "**/*.min.*",
-    "**/tests/fixtures/**",
-    "README.md"
+    "**/dist/**",
+    "**/fixtures/**",
+    "README.md",
   ],
   "insertFinalNewline": true,
   "jsxSingleQuote": true,
@@ -27,5 +32,5 @@
   "tabWidth": 2,
   "trailingComma": "all",
   "useTabs": false,
-  "vueIndentScriptAndStyle": false
+  "vueIndentScriptAndStyle": false,
 }
