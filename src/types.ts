@@ -39,6 +39,11 @@ export interface Options {
  */
 export interface OxfmtOptions extends FormatOptions {
   /**
+   * Ignore files matching these glob patterns
+   * Patterns are based on the location of the Oxfmt configuration file
+   */
+  ignorePatterns?: string[]
+  /**
    * Array of format option overrides
    */
   overrides?: FormatOptionOverride[]

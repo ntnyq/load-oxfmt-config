@@ -165,4 +165,108 @@ describe(loadOxfmtConfig, () => {
 
     expect(config).toEqual(configContent)
   })
+
+  it('loads config with ignorePatterns array', async () => {
+    const cwd = await createTempDir()
+    const configPath = '.oxfmtrc.json'
+    const configContent = {
+      printWidth: 80,
+      ignorePatterns: ['*.test.ts', 'dist/**', 'node_modules/**'],
+    }
+
+    await writeFile(join(cwd, configPath), JSON.stringify(configContent))
+
+    const config = await loadOxfmtConfig({ configPath, cwd })
+
+    expect(config.ignorePatterns).toEqual([
+      '*.test.ts',
+      'dist/**',
+      'node_modules/**',
+    ])
+    expect(config.printWidth).toBe(80)
+  })
+
+  it('loads config with empty ignorePatterns array', async () => {
+    const cwd = await createTempDir()
+    const configPath = '.oxfmtrc.json'
+    const configContent = {
+      printWidth: 100,
+      ignorePatterns: [],
+    }
+
+    await writeFile(join(cwd, configPath), JSON.stringify(configContent))
+
+    const config = await loadOxfmtConfig({ configPath, cwd })
+
+    expect(config.ignorePatterns).toEqual([])
+    expect(config.printWidth).toBe(100)
+  })
+
+  it('loads config without ignorePatterns field', async () => {
+    const cwd = await createTempDir()
+    const configPath = '.oxfmtrc.json'
+    const configContent = { printWidth: 80, semi: false }
+
+    await writeFile(join(cwd, configPath), JSON.stringify(configContent))
+
+    const config = await loadOxfmtConfig({ configPath, cwd })
+
+    expect(config.ignorePatterns).toBeUndefined()
+    expect(config.printWidth).toBe(80)
+  })
+
+  it('parses ignorePatterns from JSONC config files', async () => {
+    const cwd = await createTempDir()
+    const configPath = '.oxfmtrc.jsonc'
+    const configContent =
+      '{\n// Ignore test files\n"ignorePatterns":["**/*.test.ts"],\n"semi":true\n}'
+
+    await writeFile(join(cwd, configPath), configContent)
+
+    const config = await loadOxfmtConfig({ configPath, cwd })
+
+    expect(config.ignorePatterns).toEqual(['**/*.test.ts'])
+    expect(config.semi).toBeTruthy()
+  })
+
+  it('loads config with ignorePatterns and overrides together', async () => {
+    const cwd = await createTempDir()
+    const configPath = '.oxfmtrc.json'
+    const configContent = {
+      ignorePatterns: ['dist/**', 'build/**'],
+      overrides: [
+        {
+          files: ['src/**/*.ts'],
+          options: { printWidth: 100 },
+        },
+      ],
+    }
+
+    await writeFile(join(cwd, configPath), JSON.stringify(configContent))
+
+    const config = await loadOxfmtConfig({ configPath, cwd })
+
+    expect(config.ignorePatterns).toEqual(['dist/**', 'build/**'])
+    expect(config.overrides).toBeDefined()
+    expect(config.overrides?.[0]!.files).toEqual(['src/**/*.ts'])
+  })
+
+  it('preserves ignorePatterns with cache enabled', async () => {
+    const cwd = await createTempDir()
+    const configPath = '.oxfmtrc.json'
+    const configContent = {
+      ignorePatterns: ['*.tmp'],
+      printWidth: 80,
+    }
+
+    await writeFile(join(cwd, configPath), JSON.stringify(configContent))
+
+    const first = await loadOxfmtConfig({ configPath, cwd })
+
+    // Read again with cache enabled (default)
+    const cached = await loadOxfmtConfig({ configPath, cwd })
+
+    expect(cached.ignorePatterns).toEqual(first.ignorePatterns)
+    expect(cached.ignorePatterns).toEqual(['*.tmp'])
+  })
 })
