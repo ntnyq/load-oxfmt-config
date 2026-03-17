@@ -8,6 +8,12 @@ importers:
 
   .:
     dependencies:
+      '@ntnyq/utils':
+        specifier: ^0.11.0
+        version: 0.11.0
+      jiti:
+        specifier: ^2.6.1
+        version: 2.6.1
       jsonc-parser:
         specifier: ^3.3.1
         version: 3.3.1
@@ -96,6 +102,10 @@ packages:
 
   '@ntnyq/tsconfig@3.1.0':
     resolution: {integrity: sha512-KxPGWWG08uKhwJnGJqeL9aBg1dONcnlTU9Nm9xQTnYfIZHtmthH0XvinRST/6S7JMoFsrJ8wn/OcBzrBZkOHWg==}
+
+  '@ntnyq/utils@0.11.0':
+    resolution: {integrity: sha512-JonYz8vI++zteRImfED7WXdk5oB8I9HyrCP5YDsrhKZ1Rls0DGnFNSIR5ZurpT1wmqtSNU/hV77sfH/ieNn3oA==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
   '@oxc-project/runtime@0.115.0':
     resolution: {integrity: sha512-Rg8Wlt5dCbXhQnsXPrkOjL1DTSvXLgb2R/KYfnf1/K+R0k6UMLEmbQXPM+kwrWqSmWA2t0B1EtHy2/3zikQpvQ==}
@@ -1103,6 +1113,8 @@ snapshots:
     optional: true
 
   '@ntnyq/tsconfig@3.1.0': {}
+
+  '@ntnyq/utils@0.11.0': {}
 
   '@oxc-project/runtime@0.115.0': {}
 

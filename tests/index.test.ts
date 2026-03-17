@@ -269,4 +269,43 @@ describe(loadOxfmtConfig, () => {
     expect(cached.ignorePatterns).toEqual(first.ignorePatterns)
     expect(cached.ignorePatterns).toEqual(['*.tmp'])
   })
+
+  it('loads oxfmt.config.ts with default export', async () => {
+    const cwd = await createTempDir()
+    const configPath = 'oxfmt.config.ts'
+    const configContent = `export default { printWidth: 100, tabWidth: 4 }`
+
+    await writeFile(join(cwd, configPath), configContent)
+
+    const config = await loadOxfmtConfig({ configPath, cwd, useCache: false })
+
+    expect(config).toEqual({ printWidth: 100, tabWidth: 4 })
+  })
+
+  it('loads oxfmt.config.ts with ignorePatterns', async () => {
+    const cwd = await createTempDir()
+    const configPath = 'oxfmt.config.ts'
+    const configContent = `export default { printWidth: 80, ignorePatterns: ['dist/**', 'node_modules/**'] }`
+
+    await writeFile(join(cwd, configPath), configContent)
+
+    const config = await loadOxfmtConfig({ configPath, cwd, useCache: false })
+
+    expect(config.printWidth).toBe(80)
+    expect(config.ignorePatterns).toEqual(['dist/**', 'node_modules/**'])
+  })
+
+  it('auto-discovers oxfmt.config.ts after JSON configs', async () => {
+    const cwd = await createTempDir()
+
+    await writeFile(
+      join(cwd, 'oxfmt.config.ts'),
+      `export default { tabWidth: 4 }`,
+    )
+    await writeFile(join(cwd, '.oxfmtrc.json'), JSON.stringify({ tabWidth: 2 }))
+
+    const config = await loadOxfmtConfig({ cwd, useCache: false })
+
+    expect(config.tabWidth).toBe(2)
+  })
 })

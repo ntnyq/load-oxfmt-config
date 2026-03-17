@@ -1,6 +1,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import process from 'node:process'
+import { interopDefault } from '@ntnyq/utils'
 import { parse as parseJSONC } from 'jsonc-parser'
 import { OXFMT_CONFIG_FILES } from './constants'
 import type { Options, OxfmtOptions } from './types'
@@ -108,12 +109,20 @@ function getResolveCacheKey(cwd: string, configPath?: string) {
 }
 
 /**
- * Read and parse config file, supporting JSON and JSONC.
+ * Read and parse config file, supporting JSON, JSONC, and TypeScript/JavaScript.
  *
  * @param resolvedPath - Absolute path to the config file.
  * @returns Parsed OxfmtOptions object.
  */
 async function readConfigFromFile(resolvedPath: string): Promise<OxfmtOptions> {
+  if (resolvedPath.endsWith('.ts')) {
+    const createJiti = await interopDefault(import('jiti'))
+    const jiti = createJiti(import.meta.url)
+    const mod = await jiti.import<Record<string, unknown>>(resolvedPath)
+    const config = mod['default'] ?? mod
+    return config as OxfmtOptions
+  }
+
   const content = await readFile(resolvedPath, 'utf8')
 
   if (resolvedPath.endsWith('.jsonc')) {
