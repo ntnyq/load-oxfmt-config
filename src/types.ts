@@ -1,9 +1,9 @@
-import type { FormatOptions } from 'oxfmt'
+import type { FormatConfig } from 'oxfmt'
 
 /**
  * Format option override for a single matching rule
  */
-export interface FormatOptionOverride {
+export interface OxfmtConfigOverride {
   /**
    * Glob patterns to match files
    */
@@ -15,7 +15,7 @@ export interface FormatOptionOverride {
   /**
    * Format options to apply
    */
-  options?: FormatOptions
+  options?: FormatConfig
 }
 
 // Options for loading oxfmt configuration
@@ -37,7 +37,7 @@ export interface Options {
 /**
  * Final oxfmt options (including overrides)
  */
-export interface OxfmtOptions extends FormatOptions {
+export interface OxfmtOptions extends FormatConfig {
   /**
    * Ignore files matching these glob patterns
    * Patterns are based on the location of the Oxfmt configuration file
@@ -46,5 +46,10 @@ export interface OxfmtOptions extends FormatOptions {
   /**
    * Array of format option overrides
    */
-  overrides?: FormatOptionOverride[]
+  overrides?: OxfmtConfigOverride[]
 }
+
+/**
+ * @deprecated Use `OxfmtConfigOverride` instead
+ */
+export type FormatOptionOverride = OxfmtConfigOverride
