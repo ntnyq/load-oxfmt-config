@@ -5,12 +5,13 @@
 [![NPM DOWNLOADS](https://img.shields.io/npm/dy/load-oxfmt-config.svg)](https://www.npmjs.com/package/load-oxfmt-config)
 [![LICENSE](https://img.shields.io/github/license/ntnyq/load-oxfmt-config.svg)](https://github.com/ntnyq/load-oxfmt-config/blob/main/LICENSE)
 
-> Load and resolve `.oxfmtrc.json(c)` configuration files for [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html).
+> Load and resolve oxfmt configuration files and merge supported `.editorconfig` settings for [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html).
 
 ## Features
 
 - 🔍 **Auto-discovery** - Automatically searches for config files in current and parent directories
-- 📦 **Multiple formats** - Supports both `.oxfmtrc.json` and `.oxfmtrc.jsonc` (JSON with comments)
+- 📦 **Multiple formats** - Supports `.oxfmtrc.json`, `.oxfmtrc.jsonc`, and `oxfmt.config.ts`
+- 🧩 **EditorConfig fallback** - Merges supported `.editorconfig` fields into the returned oxfmt config result
 - ⚡ **Built-in caching** - Caches both file resolution and parsed configs for optimal performance
 - 🎯 **TypeScript support** - Fully typed with comprehensive type definitions
 - 🛠️ **Flexible API** - Support explicit config paths or automatic discovery
@@ -38,9 +39,27 @@ Load config from current directory or parent directories:
 ```ts
 import { loadOxfmtConfig } from 'load-oxfmt-config'
 
-// Automatically searches for .oxfmtrc.json(c) in current and parent directories
+// Automatically searches for oxfmt config files and the nearest .editorconfig
 const config = await loadOxfmtConfig()
 console.log(config) // { printWidth: 80, ... }
+```
+
+### Merge With `.editorconfig`
+
+```ts
+import { loadOxfmtConfig } from 'load-oxfmt-config'
+
+const config = await loadOxfmtConfig({ cwd: '/path/to/project' })
+
+// Returns one merged static config object
+console.log(config)
+// {
+//   tabWidth: 2,
+//   printWidth: 100,
+//   overrides: [
+//     { files: ['src/**/*.ts'], options: { printWidth: 120 } }
+//   ]
+// }
 ```
 
 ### Specify Working Directory
@@ -95,13 +114,13 @@ console.log(configPath) // '/path/to/.oxfmtrc.json' or undefined
 
 ### `loadOxfmtConfig(options?)`
 
-Load and parse oxfmt configuration file.
+Load and parse oxfmt configuration files, then merge supported `.editorconfig` fields into the returned result.
 
 **Parameters:**
 
 - `options` - Optional configuration object
 
-**Returns:** `Promise<FormatOptions>` - Parsed oxfmt configuration object. Returns empty object `{}` if no config file is found.
+**Returns:** `Promise<FormatOptions>` - Parsed and merged oxfmt configuration object. Returns empty object `{}` if no supported config file is found.
 
 **Throws:** Error if config file exists but cannot be parsed.
 
@@ -159,10 +178,14 @@ When `configPath` is not provided, the loader automatically searches for config 
 2. **Supported filenames:**
    - `.oxfmtrc.json`
    - `.oxfmtrc.jsonc`
+
+- `oxfmt.config.ts`
+
 3. **Stops when:**
    - A valid config file is found
    - Reaches the filesystem root
-4. **Returns:** Empty object `{}` if no config file is found
+4. **EditorConfig:** The nearest `.editorconfig` is also resolved and merged into the returned result
+5. **Returns:** Empty object `{}` if no config file is found
 
 ## Supported Config Formats
 
@@ -191,9 +214,45 @@ JSON with comments support:
   /* Code style preferences */
   "useTabs": false,
   "semi": true,
-  "singleQuote": true
+  "singleQuote": true,
 }
 ```
+
+### TypeScript (`oxfmt.config.ts`)
+
+```ts
+export default {
+  printWidth: 100,
+  tabWidth: 2,
+}
+```
+
+## `.editorconfig` Support
+
+The loader reads the nearest `.editorconfig` file and maps the subset of fields that oxfmt supports:
+
+- `end_of_line` → `endOfLine`
+- `indent_style` → `useTabs`
+- `indent_size` / `tab_width` → `tabWidth`
+- `max_line_length` → `printWidth`
+- `insert_final_newline` → `insertFinalNewline`
+
+Glob sections such as `[*.ts]` are converted into returned `overrides` entries.
+
+## Precedence
+
+The merged result follows this order:
+
+1. Root-level values from the nearest `.editorconfig`
+2. Root-level values from `.oxfmtrc.json`, `.oxfmtrc.jsonc`, or `oxfmt.config.ts`
+3. Overrides generated from `.editorconfig` sections
+4. Overrides declared directly in the oxfmt config file
+
+This means explicit oxfmt config values always win over `.editorconfig` fallback values.
+
+## Limitations
+
+`loadOxfmtConfig()` returns a static `OxfmtOptions` object. That means `.editorconfig` support is represented as a merged config shape, not as per-file runtime evaluation. In practice this works well for common root settings and section-based overrides, but it is not a full replacement for oxfmt's own file-by-file config resolution.
 
 ## Error Handling
 
@@ -218,7 +277,7 @@ The caching system maintains two separate caches:
 **Cache keys are based on:**
 
 - `cwd` + `configPath` for path resolution
-- Resolved file path for config content
+- Resolved oxfmt path and resolved `.editorconfig` path for config content
 
 **Cache invalidation:**
 
