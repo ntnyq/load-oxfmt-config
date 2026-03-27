@@ -89,6 +89,28 @@ const config = await loadOxfmtConfig({
 })
 ```
 
+### Disable `.editorconfig`
+
+```ts
+import { loadOxfmtConfig } from 'load-oxfmt-config'
+
+// Skip .editorconfig reading entirely
+const config = await loadOxfmtConfig({
+  editorconfig: false,
+})
+```
+
+### Limit `.editorconfig` to `cwd`
+
+```ts
+import { loadOxfmtConfig } from 'load-oxfmt-config'
+
+// Only look in the cwd directory itself, no upward traversal
+const config = await loadOxfmtConfig({
+  editorconfig: { onlyCwd: true },
+})
+```
+
 ### Disable Caching
 
 ```ts
@@ -169,6 +191,21 @@ Enable in-memory caching for both path resolution and parsed config contents. Wh
 - Subsequent calls with the same parameters return cached results instantly
 
 Set to `false` to force reload from disk on every call.
+
+### `editorconfig`
+
+- **Type:** `boolean | EditorconfigOption`
+- **Default:** `true`
+
+Control how `.editorconfig` files are read and merged:
+
+- **`true`** — Read and merge the nearest `.editorconfig`, walking up from the config file's directory (or `cwd` when no config path is given).
+- **`false`** — Disable `.editorconfig` reading entirely.
+- **`EditorconfigOption`** — Enable with additional settings:
+
+| Property  | Type      | Default | Description                                                                       |
+| --------- | --------- | ------- | --------------------------------------------------------------------------------- |
+| `onlyCwd` | `boolean` | `false` | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal. |
 
 ## Config File Discovery
 
