@@ -19,11 +19,7 @@
     "restriction": "warn",
     "nursery": "warn",
   },
-  "ignorePatterns": [
-    "**/dist/**",
-    "**/node_modules/**",
-    "**/tests/fixtures/**",
-  ],
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/fixtures/**"],
   "rules": {
     "capitalized-comments": "off",
     "no-async-await": "off",
@@ -164,6 +160,7 @@
         "typescript/prefer-ts-expect-error": "off",
         "typescript/require-array-sort-compare": "off",
         "vitest/no-importing-vitest-globals": "off",
+        "vitest/prefer-strict-boolean-matchers": "off",
       },
     },
   ],

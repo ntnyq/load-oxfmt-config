@@ -1,9 +1,17 @@
 import { readFile, stat } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import process from 'node:process'
 import { interopDefault } from '@ntnyq/utils'
 import { parse as parseJSONC } from 'jsonc-parser'
 import { OXFMT_CONFIG_FILES } from './constants'
+import {
+  getEditorconfigResolveCacheKey,
+  getEditorconfigSearchDir,
+  mergeOverrides,
+  mergeRootOptions,
+  readEditorconfigFromFile,
+  resolveEditorconfigPath,
+} from './editorconfig'
 import type { Options, OxfmtOptions } from './types'
 
 // Cache resolved config paths keyed by cwd + configPath
@@ -43,14 +51,19 @@ function cachePromise<T>(
  * Build a cache key for config content; prefixes missing entries with `missing:`.
  *
  * @param resolvedPath - Resolved config path or undefined when missing.
+ * @param editorconfigPath - Resolved editorconfig path or undefined when missing.
  * @param resolveKey - Key used for path resolution caching.
  * @returns Cache key for config content.
  */
 function getConfigCacheKey(
   resolvedPath: string | undefined,
+  editorconfigPath: string | undefined,
   resolveKey: string,
 ) {
-  return resolvedPath || `missing:${resolveKey}`
+  const oxfmtKey = resolvedPath || `missing-oxfmt:${resolveKey}`
+  const editorconfigKey =
+    editorconfigPath || `missing-editorconfig:${resolveKey}`
+  return `${oxfmtKey}::${editorconfigKey}`
 }
 
 /**
@@ -149,7 +162,18 @@ export async function loadOxfmtConfig(
 ): Promise<OxfmtOptions> {
   const useCache = options.useCache !== false
   const cwd = options.cwd || process.cwd()
+  const editorconfig = options.editorconfig ?? true
+  const useEditorconfig = editorconfig !== false
+  const onlyCwd =
+    useEditorconfig && typeof editorconfig === 'object'
+      ? (editorconfig.onlyCwd ?? false)
+      : false
   const resolveKey = getResolveCacheKey(cwd, options.configPath)
+  const editorconfigSearchDir = getEditorconfigSearchDir(
+    cwd,
+    options.configPath,
+  )
+  const editorconfigResolveKey = getEditorconfigResolveCacheKey(resolveKey)
 
   const resolvedPath = useCache
     ? await cachePromise(resolveCache, resolveKey, () =>
@@ -157,27 +181,67 @@ export async function loadOxfmtConfig(
       )
     : await resolveOxfmtrcPath(cwd, options.configPath)
 
-  if (!resolvedPath) {
+  const editorconfigPath = useEditorconfig
+    ? await (useCache
+        ? cachePromise(resolveCache, editorconfigResolveKey, () =>
+            resolveEditorconfigPath(editorconfigSearchDir, onlyCwd),
+          )
+        : resolveEditorconfigPath(editorconfigSearchDir, onlyCwd))
+    : undefined
+
+  const anchorDir = dirname(resolvedPath || editorconfigPath || cwd)
+
+  const loadTask = async () => {
+    const oxfmtConfig = resolvedPath
+      ? await readConfigFromFile(resolvedPath).catch(error => {
+          throw new Error(
+            `Failed to parse oxfmt configuration file at ${resolvedPath}: ${error instanceof Error ? error.message : String(error)}`,
+            {
+              cause: error,
+            },
+          )
+        })
+      : {}
+
+    if (!editorconfigPath) {
+      return oxfmtConfig
+    }
+
+    const editorconfigData = await readEditorconfigFromFile(
+      editorconfigPath,
+      anchorDir,
+    )
+
+    const mergedConfig = mergeRootOptions(
+      oxfmtConfig,
+      editorconfigData.rootOptions,
+    )
+    const mergedOverrides = mergeOverrides(
+      oxfmtConfig.overrides,
+      editorconfigData.overrides,
+    )
+
+    if (!mergedOverrides) {
+      return mergedConfig
+    }
+
+    return {
+      ...mergedConfig,
+      overrides: mergedOverrides,
+    }
+  }
+
+  if (!resolvedPath && !editorconfigPath) {
     if (!useCache) {
       return {}
     }
 
     return cachePromise(
       configCache,
-      getConfigCacheKey(resolvedPath, resolveKey),
+      getConfigCacheKey(resolvedPath, editorconfigPath, resolveKey),
       () => Promise.resolve({}),
     )
   }
-
-  const loadTask = () =>
-    readConfigFromFile(resolvedPath).catch(error => {
-      throw new Error(
-        `Failed to parse oxfmt configuration file at ${resolvedPath}: ${error instanceof Error ? error.message : String(error)}`,
-        {
-          cause: error,
-        },
-      )
-    })
 
   if (!useCache) {
     return loadTask()
@@ -185,7 +249,7 @@ export async function loadOxfmtConfig(
 
   return cachePromise(
     configCache,
-    getConfigCacheKey(resolvedPath, resolveKey),
+    getConfigCacheKey(resolvedPath, editorconfigPath, resolveKey),
     loadTask,
   )
 }

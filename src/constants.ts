@@ -7,3 +7,13 @@ export const OXFMT_CONFIG_FILES = [
   '.oxfmtrc.jsonc',
   'oxfmt.config.ts',
 ]
+
+/**
+ * Supported EditorConfig filename.
+ */
+export const EDITORCONFIG_FILE = '.editorconfig'
+
+/**
+ * Sections that apply globally and can be merged into root-level oxfmt options.
+ */
+export const EDITORCONFIG_GLOBAL_SECTION_NAMES = ['*', '**']
