@@ -343,4 +343,32 @@ describe(loadOxfmtConfig, () => {
     expect(withWalk.tabWidth).toBe(4)
     expect(withoutWalk).toEqual({})
   })
+
+  it('resolves .editorconfig from editorconfig.cwd instead of config directory', async () => {
+    const cwd = fixturePath('load', 'editor-cwd')
+    const editorconfigDir = join(cwd, 'alt')
+
+    const config = await loadOxfmtConfig({
+      cwd,
+      editorconfig: { cwd: editorconfigDir },
+      useCache: false,
+    })
+
+    expect(config.semi).toBeTruthy()
+    expect(config.tabWidth).toBe(8)
+    expect(config.printWidth).toBe(120)
+  })
+
+  it('does not use editorconfig.cwd directory when editorconfig.cwd is not set', async () => {
+    const cwd = fixturePath('load', 'editor-cwd')
+
+    const config = await loadOxfmtConfig({
+      cwd,
+      useCache: false,
+    })
+
+    expect(config.semi).toBeTruthy()
+    expect(config.tabWidth).toBeUndefined()
+    expect(config.printWidth).toBeUndefined()
+  })
 })

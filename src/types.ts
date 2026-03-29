@@ -11,6 +11,15 @@ export interface EditorconfigOption {
    * @default false
    */
   onlyCwd?: boolean
+  /**
+   * Override the directory from which `.editorconfig` resolution starts.
+   * When set, editorconfig is searched from this directory instead of from
+   * the config file's directory (or the top-level `cwd`).
+   *
+   * This is useful when the oxfmt config path is pre-resolved and you still
+   * want editorconfig to be resolved relative to each file's directory.
+   */
+  cwd?: string
 }
 
 /**

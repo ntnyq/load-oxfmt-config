@@ -111,6 +111,19 @@ const config = await loadOxfmtConfig({
 })
 ```
 
+### Override `.editorconfig` Search Directory
+
+```ts
+import { loadOxfmtConfig } from 'load-oxfmt-config'
+
+// Search .editorconfig from a custom directory instead of the config file's directory
+const config = await loadOxfmtConfig({
+  editorconfig: {
+    cwd: '/path/to/editorconfig-dir',
+  },
+})
+```
+
 ### Disable Caching
 
 ```ts
@@ -203,9 +216,10 @@ Control how `.editorconfig` files are read and merged:
 - **`false`** — Disable `.editorconfig` reading entirely.
 - **`EditorconfigOption`** — Enable with additional settings:
 
-| Property  | Type      | Default | Description                                                                       |
-| --------- | --------- | ------- | --------------------------------------------------------------------------------- |
-| `onlyCwd` | `boolean` | `false` | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal. |
+| Property  | Type      | Default     | Description                                                                                                           |
+| --------- | --------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
+| `onlyCwd` | `boolean` | `false`     | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal.                                     |
+| `cwd`     | `string`  | `undefined` | Override the directory from which `.editorconfig` resolution starts, instead of the config file's directory or `cwd`. |
 
 ## Config File Discovery
 
