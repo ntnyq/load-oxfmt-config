@@ -93,6 +93,10 @@
         ],
       },
     ],
+    "max-lines": [
+      "warn",
+      { "max": 500, "skipBlankLines": true, "skipComments": true },
+    ],
     "max-params": ["warn", 5],
     "max-statements": ["warn", 50],
     "max-lines-per-function": [
@@ -161,6 +165,7 @@
         "typescript/require-array-sort-compare": "off",
         "vitest/no-importing-vitest-globals": "off",
         "vitest/prefer-strict-boolean-matchers": "off",
+        "vitest/require-test-timeout": "off",
       },
     },
   ],

@@ -1,13 +1,11 @@
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadOxfmtConfig, resolveOxfmtrcPath } from '../src'
 
-const testsDir = dirname(fileURLToPath(import.meta.url))
-const fixturesDir = join(testsDir, 'fixtures')
+const FIXTURES_DIR = join(import.meta.dirname, 'fixtures')
 
 function fixturePath(...segments: string[]) {
-  return join(fixturesDir, ...segments)
+  return join(FIXTURES_DIR, ...segments)
 }
 
 describe(resolveOxfmtrcPath, () => {
@@ -225,6 +223,22 @@ describe(loadOxfmtConfig, () => {
       useTabs: false,
     })
   })
+
+  it.each([
+    ['single', { singleQuote: true }],
+    ['double', { singleQuote: false }],
+    ['auto', {}],
+    ['invalid', {}],
+  ])(
+    'maps .editorconfig quote_type=%s into oxfmt options',
+    async (fixtureName, expected) => {
+      const cwd = fixturePath('load', 'editor-quote-type', fixtureName)
+
+      const config = await loadOxfmtConfig({ cwd, useCache: false })
+
+      expect(config).toEqual(expected)
+    },
+  )
 
   it('uses .oxfmtrc root fields over .editorconfig fallback values', async () => {
     const cwd = fixturePath('load', 'editor-fallback')
