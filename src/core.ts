@@ -1,7 +1,7 @@
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
 import process from 'node:process'
-import { interopDefault } from '@ntnyq/utils'
+import { interopDefault, isObject } from '@ntnyq/utils'
 import { parse as parseJSONC } from 'jsonc-parser'
 import { OXFMT_CONFIG_FILES } from './constants'
 import {
@@ -165,13 +165,11 @@ export async function loadOxfmtConfig(
   const editorconfig = options.editorconfig ?? true
   const useEditorconfig = editorconfig !== false
   const onlyCwd =
-    useEditorconfig && typeof editorconfig === 'object'
+    useEditorconfig && isObject(editorconfig)
       ? (editorconfig.onlyCwd ?? false)
       : false
   const editorconfigCwd =
-    useEditorconfig && typeof editorconfig === 'object'
-      ? editorconfig.cwd
-      : undefined
+    useEditorconfig && isObject(editorconfig) ? editorconfig.cwd : undefined
   const resolveKey = getResolveCacheKey(cwd, options.configPath)
   const editorconfigSearchDir =
     editorconfigCwd || getEditorconfigSearchDir(cwd, options.configPath)

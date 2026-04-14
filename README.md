@@ -287,6 +287,7 @@ The loader reads the nearest `.editorconfig` file and maps the subset of fields 
 - `indent_size` / `tab_width` → `tabWidth`
 - `max_line_length` → `printWidth`
 - `insert_final_newline` → `insertFinalNewline`
+- `quote_type` → `singleQuote`
 
 Glob sections such as `[*.ts]` are converted into returned `overrides` entries.
 
