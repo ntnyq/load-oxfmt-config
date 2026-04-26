@@ -16,4 +16,4 @@ export const EDITORCONFIG_FILE = '.editorconfig'
 /**
  * Sections that apply globally and can be merged into root-level oxfmt options.
  */
-export const EDITORCONFIG_GLOBAL_SECTION_NAMES = ['*', '**']
+export const EDITORCONFIG_GLOBAL_SECTION_NAMES = ['*']

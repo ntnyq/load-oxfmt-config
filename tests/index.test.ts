@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadOxfmtConfig, resolveOxfmtrcPath } from '../src'
+import { readEditorconfigFromFile } from '../src/editorconfig'
 
 const FIXTURES_DIR = join(import.meta.dirname, 'fixtures')
 
@@ -46,6 +47,31 @@ describe(resolveOxfmtrcPath, () => {
     const resolved = await resolveOxfmtrcPath(cwd, absoluteConfig)
 
     expect(resolved).toBe(absoluteConfig)
+  })
+})
+
+describe(readEditorconfigFromFile, () => {
+  it('treats [**] sections as overrides instead of root options', async () => {
+    const cwd = fixturePath('load', 'editor-double-star')
+
+    const config = await readEditorconfigFromFile(
+      join(cwd, '.editorconfig'),
+      cwd,
+    )
+
+    expect(config).toEqual({
+      rootOptions: {},
+      overrides: [
+        {
+          files: ['**'],
+          options: {
+            printWidth: 90,
+            tabWidth: 3,
+            useTabs: false,
+          },
+        },
+      ],
+    })
   })
 })
 
@@ -285,6 +311,26 @@ describe(loadOxfmtConfig, () => {
 
     expect(config.useTabs).toBeTruthy()
     expect(config.tabWidth).toBe(6)
+  })
+
+  it('treats [**] sections as overrides when loading .editorconfig', async () => {
+    const cwd = fixturePath('load', 'editor-double-star')
+
+    const config = await loadOxfmtConfig({ cwd, useCache: false })
+
+    expect(config.printWidth).toBeUndefined()
+    expect(config.tabWidth).toBeUndefined()
+    expect(config.useTabs).toBeUndefined()
+    expect(config.overrides).toEqual([
+      {
+        files: ['**'],
+        options: {
+          printWidth: 90,
+          tabWidth: 3,
+          useTabs: false,
+        },
+      },
+    ])
   })
 
   it('rebases .editorconfig overrides to the discovered oxfmt config directory', async () => {

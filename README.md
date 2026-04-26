@@ -284,12 +284,13 @@ The loader reads the nearest `.editorconfig` file and maps the subset of fields 
 
 - `end_of_line` → `endOfLine`
 - `indent_style` → `useTabs`
-- `indent_size` / `tab_width` → `tabWidth`
+- `indent_size` → `tabWidth` when `indent_style = space`
+- `tab_width` → `tabWidth`
 - `max_line_length` → `printWidth`
 - `insert_final_newline` → `insertFinalNewline`
 - `quote_type` → `singleQuote`
 
-Glob sections such as `[*.ts]` are converted into returned `overrides` entries.
+Only `[*]` is treated as a global section to match oxfmt. Other sections such as `[**]` and `[*.ts]` are converted into returned `overrides` entries.
 
 ## Precedence
 
