@@ -32,23 +32,18 @@
     "prefer-destructuring": "off",
     "sort-imports": "off",
     "sort-keys": "off",
-    // Plugin oxc: we turn off some rules that may be too strict or not suitable for our codebase
     "oxc/no-optional-chaining": "off",
     "oxc/no-rest-spread-properties": "off",
-    // Plugin import: we turn off some rules that may be too strict or not suitable for our codebase
     "import/exports-last": "off",
     "import/group-exports": "off",
     "import/prefer-default-export": "off",
     "import/no-named-export": "off",
     "import/no-nodejs-modules": "off",
     "import/no-relative-parent-imports": "off",
-    // Plugin jsdoc: we use typescript's type annotations, so we don't need redundant JSDoc types
     "jsdoc/require-param-type": "off",
     "jsdoc/require-returns-type": "off",
-    // Plugin promise: we prefer async/await syntax, so we turn off rules that enforce using .then() and .catch()
     "promise/prefer-await-to-then": "off",
     "promise/prefer-await-to-callbacks": "off",
-    // Plugin unicorn: we turn off some stylistic rules that may be too strict or not suitable for our codebase
     "unicorn/explicit-length-check": "off",
     "unicorn/filename-case": "off",
     "unicorn/numeric-separators-style": "off",
@@ -63,7 +58,6 @@
     "unicorn/prefer-global-this": "off",
     "unicorn/relative-url-style": "off",
     "unicorn/switch-case-braces": "off",
-    // Plugin typescript: we turn off some rules that may be too strict or not suitable for our codebase
     "typescript/explicit-function-return-type": "off",
     "typescript/explicit-module-boundary-types": "off",
     "complexity": ["warn", { "max": 50 }],

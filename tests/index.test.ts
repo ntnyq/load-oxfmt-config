@@ -247,7 +247,7 @@ describe(loadOxfmtConfig, () => {
 
     expect(config.printWidth).toBe(120)
     expect(config.useTabs).toBeFalsy()
-    expect(config.tabWidth).toBe(8)
+    expect(config.tabWidth).toBeUndefined()
   })
 
   it('converts .editorconfig sections into low-priority overrides', async () => {
@@ -255,12 +255,8 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ cwd, useCache: false })
 
-    expect(config.tabWidth).toBe(2)
+    expect(config.tabWidth).toBeUndefined()
     expect(config.overrides).toEqual([
-      {
-        files: ['*.ts'],
-        options: { tabWidth: 4 },
-      },
       {
         files: ['*.md'],
         options: { printWidth: 72 },
@@ -278,8 +274,17 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ cwd: child, useCache: false })
 
-    expect(config.tabWidth).toBe(2)
+    expect(config.tabWidth).toBeUndefined()
     expect(config.useTabs).toBeTruthy()
+  })
+
+  it('uses explicit tab_width when .editorconfig indent_style is tab', async () => {
+    const cwd = fixturePath('load', 'editor-tab-width')
+
+    const config = await loadOxfmtConfig({ cwd, useCache: false })
+
+    expect(config.useTabs).toBeTruthy()
+    expect(config.tabWidth).toBe(6)
   })
 
   it('rebases .editorconfig overrides to the discovered oxfmt config directory', async () => {
@@ -289,7 +294,7 @@ describe(loadOxfmtConfig, () => {
     const config = await loadOxfmtConfig({ cwd: child, useCache: false })
 
     expect(config.semi).toBeFalsy()
-    expect(config.tabWidth).toBe(2)
+    expect(config.tabWidth).toBeUndefined()
     expect(config.overrides).toEqual([
       {
         files: ['packages/app/src/**/*.ts'],
@@ -354,7 +359,7 @@ describe(loadOxfmtConfig, () => {
       useCache: false,
     })
 
-    expect(withWalk.tabWidth).toBe(4)
+    expect(withWalk.tabWidth).toBeUndefined()
     expect(withoutWalk).toEqual({})
   })
 
@@ -369,7 +374,7 @@ describe(loadOxfmtConfig, () => {
     })
 
     expect(config.semi).toBeTruthy()
-    expect(config.tabWidth).toBe(8)
+    expect(config.tabWidth).toBeUndefined()
     expect(config.printWidth).toBe(120)
   })
 

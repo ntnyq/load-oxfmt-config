@@ -204,13 +204,22 @@ function parseEditorconfigQuoteType(value: string | undefined) {
  * Resolves the effective tab width from an EditorConfig section.
  *
  * @param section - The parsed EditorConfig section body.
+ * @param useTabs - The resolved indent style from the same section, when available.
  * @returns The resolved tab width, or undefined when no numeric value is available.
  */
-function parseEditorconfigTabWidth(section: SectionBody) {
+function parseEditorconfigTabWidth(
+  section: SectionBody,
+  useTabs: boolean | undefined,
+) {
   const indentSize = section['indent_size']
   const tabWidth = section['tab_width']
 
-  if (indentSize && indentSize !== 'unset' && indentSize !== 'tab') {
+  if (
+    useTabs === false &&
+    indentSize &&
+    indentSize !== 'unset' &&
+    indentSize !== 'tab'
+  ) {
     const parsedIndentSize = Number(indentSize)
     if (Number.isFinite(parsedIndentSize)) {
       return parsedIndentSize
@@ -254,7 +263,7 @@ function mapEditorconfigSectionToOptions(
     options.singleQuote = singleQuote
   }
 
-  const tabWidth = parseEditorconfigTabWidth(section)
+  const tabWidth = parseEditorconfigTabWidth(section, options.useTabs)
   if (isNumber(tabWidth)) {
     options.tabWidth = tabWidth
   }
