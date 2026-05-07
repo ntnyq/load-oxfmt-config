@@ -1,9 +1,12 @@
-import { readFile, stat } from 'node:fs/promises'
-import { dirname, isAbsolute, join } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import process from 'node:process'
-import { interopDefault, isObject } from '@ntnyq/utils'
-import { parse as parseJSONC } from 'jsonc-parser'
-import { OXFMT_CONFIG_FILES } from './constants'
+import { isObject } from '@ntnyq/utils'
+import {
+  getConfigCacheKey,
+  getResolveCacheKey,
+  readConfigFromFile,
+  resolveOxfmtrcPath,
+} from './config-file'
 import {
   getEditorconfigResolveCacheKey,
   getEditorconfigSearchDir,
@@ -12,7 +15,8 @@ import {
   readEditorconfigFromFile,
   resolveEditorconfigPath,
 } from './editorconfig'
-import type { Options, OxfmtOptions } from './types'
+import type { LoadOxfmtConfigResult, Options, OxfmtOptions } from './types'
+import { cachePromise } from './utils'
 
 // Cache resolved config paths keyed by cwd + configPath
 const resolveCache = new Map<string, Promise<string | undefined>>()
@@ -20,156 +24,40 @@ const resolveCache = new Map<string, Promise<string | undefined>>()
 // Cache parsed config objects keyed by resolvedPath + resolveKey
 const configCache = new Map<string, Promise<OxfmtOptions>>()
 
-/**
- * Return a cached promise by key, creating and storing it on miss; failures clear the entry.
- *
- * @param cache - Map used to store inflight/resolved promises.
- * @param key - Cache key.
- * @param factory - Factory to create the promise when missing.
- * @returns Cached or newly created promise.
- */
-function cachePromise<T>(
-  cache: Map<string, Promise<T>>,
-  key: string,
-  factory: () => Promise<T>,
-) {
-  const cached = cache.get(key)
-  if (cached) {
-    return cached
-  }
-
-  const task = factory().catch(error => {
-    cache.delete(key)
-    throw error
-  })
-
-  cache.set(key, task)
-  return task
-}
+export { resolveOxfmtrcPath } from './config-file'
 
 /**
- * Build a cache key for config content; prefixes missing entries with `missing:`.
+ * Resolve config + editorconfig and return merged config with metadata.
  *
- * @param resolvedPath - Resolved config path or undefined when missing.
- * @param editorconfigPath - Resolved editorconfig path or undefined when missing.
- * @param resolveKey - Key used for path resolution caching.
- * @returns Cache key for config content.
- */
-function getConfigCacheKey(
-  resolvedPath: string | undefined,
-  editorconfigPath: string | undefined,
-  resolveKey: string,
-) {
-  const oxfmtKey = resolvedPath || `missing-oxfmt:${resolveKey}`
-  const editorconfigKey =
-    editorconfigPath || `missing-editorconfig:${resolveKey}`
-  return `${oxfmtKey}::${editorconfigKey}`
-}
-
-/**
- * Resolve the oxfmt config file path.
- * - If `configPath` is provided, absolute paths are returned as-is; relative paths are joined to cwd.
- * - Otherwise, walk upward from cwd to find known filenames.
- *
- * @param cwd - Starting directory for resolution.
- * @param configPath - Optional explicit path (absolute or relative to cwd).
- * @returns Absolute path to the config file, or undefined when not found.
- */
-export async function resolveOxfmtrcPath(
-  cwd: string,
-  configPath?: string,
-): Promise<string | undefined> {
-  if (configPath) {
-    return isAbsolute(configPath) ? configPath : join(cwd, configPath)
-  }
-
-  let currentDir = cwd
-
-  while (true) {
-    for (const filename of OXFMT_CONFIG_FILES) {
-      const configFilePath = join(currentDir, filename)
-
-      try {
-        const stats = await stat(configFilePath)
-        if (stats.isFile()) {
-          return configFilePath
-        }
-      } catch {
-        // File does not exist, continue searching
-      }
-    }
-
-    const parentDir = join(currentDir, '..')
-
-    if (parentDir === currentDir) {
-      break
-    }
-    currentDir = parentDir
-  }
-
-  return undefined
-}
-
-/**
- * Build a cache key for path resolution (cwd + configPath).
- *
- * @param cwd - Current working directory.
- * @param configPath - Optional config path.
- * @returns Cache key for resolve cache.
- */
-function getResolveCacheKey(cwd: string, configPath?: string) {
-  return `${cwd}::${configPath || ''}`
-}
-
-/**
- * Read and parse config file, supporting JSON, JSONC, and TypeScript/JavaScript.
- *
- * @param resolvedPath - Absolute path to the config file.
- * @returns Parsed OxfmtOptions object.
- */
-async function readConfigFromFile(resolvedPath: string): Promise<OxfmtOptions> {
-  if (resolvedPath.endsWith('.ts')) {
-    const createJiti = await interopDefault(import('jiti'))
-    const jiti = createJiti(import.meta.url)
-    const mod = await jiti.import<Record<string, unknown>>(resolvedPath)
-    const config = mod['default'] ?? mod
-    return config as OxfmtOptions
-  }
-
-  const content = await readFile(resolvedPath, 'utf8')
-
-  if (resolvedPath.endsWith('.jsonc')) {
-    return parseJSONC(content) as OxfmtOptions
-  }
-  return JSON.parse(content) as OxfmtOptions
-}
-
-/**
- * Load oxfmt configuration: resolve the file path, then read and parse it.
- * Caching is enabled by default; pass `useCache: false` to force a re-read.
- *
- * @param options - Optional loader settings (cwd, configPath, useCache).
- * @returns Parsed oxfmt OxfmtOptions or an empty object when missing.
- * @throws {Error} when the config file exists but cannot be parsed.
+ * @param options - Loader settings.
+ * @returns Merged config and optional resolved config metadata.
  *
  * @example
  * ```ts
- * const config = await loadOxfmtConfig({ cwd: '/project' })
+ * import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+ *
+ * const result = await loadOxfmtConfigResult({ cwd: process.cwd() })
+ * console.log(result.config)
  * ```
  */
-export async function loadOxfmtConfig(
+export async function loadOxfmtConfigResult(
   options: Options = {},
-): Promise<OxfmtOptions> {
+): Promise<LoadOxfmtConfigResult> {
   const useCache = options.useCache !== false
-  const cwd = options.cwd || process.cwd()
+  const cwd = resolve(options.cwd || process.cwd())
   const editorconfig = options.editorconfig ?? true
   const useEditorconfig = editorconfig !== false
-  const onlyCwd =
-    useEditorconfig && isObject(editorconfig)
-      ? (editorconfig.onlyCwd ?? false)
-      : false
+  const isEditorconfigOptionsObject = useEditorconfig && isObject(editorconfig)
+
+  const onlyCwd = isEditorconfigOptionsObject
+    ? (editorconfig.onlyCwd ?? false)
+    : false
+
   const editorconfigCwd =
-    useEditorconfig && isObject(editorconfig) ? editorconfig.cwd : undefined
+    isEditorconfigOptionsObject && editorconfig.cwd
+      ? resolve(editorconfig.cwd)
+      : undefined
+
   const resolveKey = getResolveCacheKey(cwd, options.configPath)
   const editorconfigSearchDir =
     editorconfigCwd || getEditorconfigSearchDir(cwd, options.configPath)
@@ -235,25 +123,31 @@ export async function loadOxfmtConfig(
     }
   }
 
-  if (!resolvedPath && !editorconfigPath) {
-    if (!useCache) {
-      return {}
+  const hasNoConfigSources = !resolvedPath && !editorconfigPath
+  const config: OxfmtOptions = await (async () => {
+    if (hasNoConfigSources) {
+      return useCache
+        ? await cachePromise(
+            configCache,
+            getConfigCacheKey(resolvedPath, editorconfigPath, resolveKey),
+            () => Promise.resolve({}),
+          )
+        : {}
     }
 
-    return cachePromise(
-      configCache,
-      getConfigCacheKey(resolvedPath, editorconfigPath, resolveKey),
-      () => Promise.resolve({}),
-    )
-  }
+    return useCache
+      ? await cachePromise(
+          configCache,
+          getConfigCacheKey(resolvedPath, editorconfigPath, resolveKey),
+          loadTask,
+        )
+      : await loadTask()
+  })()
 
-  if (!useCache) {
-    return loadTask()
+  return {
+    config,
+    ...(resolvedPath
+      ? { filepath: resolvedPath, dirname: dirname(resolvedPath) }
+      : {}),
   }
-
-  return cachePromise(
-    configCache,
-    getConfigCacheKey(resolvedPath, editorconfigPath, resolveKey),
-    loadTask,
-  )
 }

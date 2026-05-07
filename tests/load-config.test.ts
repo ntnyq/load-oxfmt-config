@@ -1,79 +1,8 @@
+import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { loadOxfmtConfig, resolveOxfmtrcPath } from '../src'
-import { readEditorconfigFromFile } from '../src/editorconfig'
-
-const FIXTURES_DIR = join(import.meta.dirname, 'fixtures')
-
-function fixturePath(...segments: string[]) {
-  return join(FIXTURES_DIR, ...segments)
-}
-
-describe(resolveOxfmtrcPath, () => {
-  it('uses explicit configPath relative to cwd', async () => {
-    const cwd = fixturePath('resolve', 'explicit-relative')
-    const configPath = '.oxfmtrc.json'
-    const expectedPath = join(cwd, configPath)
-
-    const resolved = await resolveOxfmtrcPath(cwd, configPath)
-
-    expect(resolved).toBe(expectedPath)
-  })
-
-  it('walks up directories to find config files', async () => {
-    const root = fixturePath('resolve', 'walk-up')
-    const parent = join(root, 'parent')
-    const child = join(parent, 'child')
-    const configPath = join(parent, '.oxfmtrc.json')
-
-    const resolved = await resolveOxfmtrcPath(child)
-
-    expect(resolved).toBe(configPath)
-  })
-
-  it('resolves nearest fixture config from nested directory', async () => {
-    const nested = fixturePath('resolve', 'no-config', 'nested')
-    const expected = fixturePath('resolve', 'no-config', '.oxfmtrc.json')
-
-    const resolved = await resolveOxfmtrcPath(nested)
-
-    expect(resolved).toBe(expected)
-  })
-
-  it('returns absolute configPath unchanged', async () => {
-    const cwd = fixturePath('resolve', 'absolute')
-    const absoluteConfig = join(cwd, '.oxfmtrc.json')
-
-    const resolved = await resolveOxfmtrcPath(cwd, absoluteConfig)
-
-    expect(resolved).toBe(absoluteConfig)
-  })
-})
-
-describe(readEditorconfigFromFile, () => {
-  it('treats [**] sections as overrides instead of root options', async () => {
-    const cwd = fixturePath('load', 'editor-double-star')
-
-    const config = await readEditorconfigFromFile(
-      join(cwd, '.editorconfig'),
-      cwd,
-    )
-
-    expect(config).toEqual({
-      rootOptions: {},
-      overrides: [
-        {
-          files: ['**'],
-          options: {
-            printWidth: 90,
-            tabWidth: 3,
-            useTabs: false,
-          },
-        },
-      ],
-    })
-  })
-})
+import { loadOxfmtConfig } from '../src'
+import { fixturePath, withTempDir } from './helpers'
 
 describe(loadOxfmtConfig, () => {
   it('returns empty object when config is missing', async () => {
@@ -81,7 +10,7 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ cwd })
 
-    expect(config).toEqual({})
+    expect(config).toStrictEqual({})
   })
 
   it('loads JSON config when configPath is provided', async () => {
@@ -90,7 +19,7 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ configPath, cwd })
 
-    expect(config).toEqual({ printWidth: 80, semi: false })
+    expect(config).toStrictEqual({ printWidth: 80, semi: false })
   })
 
   it('parses JSONC config files', async () => {
@@ -99,7 +28,7 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ configPath, cwd })
 
-    expect(config).toEqual({ singleQuote: true, tabWidth: 4 })
+    expect(config).toStrictEqual({ singleQuote: true, tabWidth: 4 })
   })
 
   it('throws a helpful error when JSON is invalid', async () => {
@@ -107,7 +36,7 @@ describe(loadOxfmtConfig, () => {
     const configPath = '.oxfmtrc.json'
 
     await expect(loadOxfmtConfig({ configPath, cwd })).rejects.toThrow(
-      /Failed to parse oxfmt configuration file/,
+      /Failed to parse oxfmt configuration file/u,
     )
   })
 
@@ -129,7 +58,7 @@ describe(loadOxfmtConfig, () => {
 
     const fresh = await loadOxfmtConfig({ configPath, cwd, useCache: false })
 
-    expect(fresh).toEqual({ tabWidth: 2, useTabs: false })
+    expect(fresh).toStrictEqual({ tabWidth: 2, useTabs: false })
     expect(fresh).not.toBe(cached)
   })
 
@@ -139,7 +68,7 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ configPath: absoluteConfig, cwd })
 
-    expect(config).toEqual({ semi: false, tabWidth: 2 })
+    expect(config).toStrictEqual({ semi: false, tabWidth: 2 })
   })
 
   it('loads config with ignorePatterns array', async () => {
@@ -148,7 +77,7 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ configPath, cwd })
 
-    expect(config.ignorePatterns).toEqual([
+    expect(config.ignorePatterns).toStrictEqual([
       '*.test.ts',
       'dist/**',
       'node_modules/**',
@@ -162,7 +91,7 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ configPath, cwd })
 
-    expect(config.ignorePatterns).toEqual([])
+    expect(config.ignorePatterns).toStrictEqual([])
     expect(config.printWidth).toBe(100)
   })
 
@@ -182,7 +111,7 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ configPath, cwd })
 
-    expect(config.ignorePatterns).toEqual(['**/*.test.ts'])
+    expect(config.ignorePatterns).toStrictEqual(['**/*.test.ts'])
     expect(config.semi).toBeTruthy()
   })
 
@@ -192,9 +121,9 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ configPath, cwd })
 
-    expect(config.ignorePatterns).toEqual(['dist/**', 'build/**'])
+    expect(config.ignorePatterns).toStrictEqual(['dist/**', 'build/**'])
     expect(config.overrides).toBeDefined()
-    expect(config.overrides?.[0]!.files).toEqual(['src/**/*.ts'])
+    expect(config.overrides?.[0]!.files).toStrictEqual(['src/**/*.ts'])
   })
 
   it('preserves ignorePatterns with cache enabled', async () => {
@@ -205,8 +134,8 @@ describe(loadOxfmtConfig, () => {
     const cached = await loadOxfmtConfig({ configPath, cwd })
 
     expect(cached).toBe(first)
-    expect(cached.ignorePatterns).toEqual(first.ignorePatterns)
-    expect(cached.ignorePatterns).toEqual(['*.tmp'])
+    expect(cached.ignorePatterns).toStrictEqual(first.ignorePatterns)
+    expect(cached.ignorePatterns).toStrictEqual(['*.tmp'])
   })
 
   it('loads oxfmt.config.ts with default export', async () => {
@@ -215,7 +144,7 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ configPath, cwd, useCache: false })
 
-    expect(config).toEqual({ printWidth: 100, tabWidth: 4 })
+    expect(config).toStrictEqual({ printWidth: 100, tabWidth: 4 })
   })
 
   it('loads oxfmt.config.ts with ignorePatterns', async () => {
@@ -225,7 +154,43 @@ describe(loadOxfmtConfig, () => {
     const config = await loadOxfmtConfig({ configPath, cwd, useCache: false })
 
     expect(config.printWidth).toBe(80)
-    expect(config.ignorePatterns).toEqual(['dist/**', 'node_modules/**'])
+    expect(config.ignorePatterns).toStrictEqual(['dist/**', 'node_modules/**'])
+  })
+
+  it('loads explicit .mts config path', async () => {
+    await withTempDir('oxfmt-config-explicit-mts-', async cwd => {
+      const configPath = join(cwd, 'custom.config.mts')
+      await writeFile(configPath, 'export default { printWidth: 88 }\n', 'utf8')
+
+      const config = await loadOxfmtConfig({
+        cwd,
+        configPath,
+        useCache: false,
+        editorconfig: false,
+      })
+
+      expect(config.printWidth).toBe(88)
+    })
+  })
+
+  it('loads explicit .cjs config path', async () => {
+    await withTempDir('oxfmt-config-explicit-cjs-', async cwd => {
+      const configPath = join(cwd, 'custom.config.cjs')
+      await writeFile(
+        configPath,
+        'module.exports = { printWidth: 89 }\n',
+        'utf8',
+      )
+
+      const config = await loadOxfmtConfig({
+        cwd,
+        configPath,
+        useCache: false,
+        editorconfig: false,
+      })
+
+      expect(config.printWidth).toBe(89)
+    })
   })
 
   it('auto-discovers oxfmt.config.ts after JSON configs', async () => {
@@ -241,7 +206,7 @@ describe(loadOxfmtConfig, () => {
 
     const config = await loadOxfmtConfig({ cwd, useCache: false })
 
-    expect(config).toEqual({
+    expect(config).toStrictEqual({
       endOfLine: 'crlf',
       insertFinalNewline: false,
       printWidth: 90,
@@ -262,7 +227,7 @@ describe(loadOxfmtConfig, () => {
 
       const config = await loadOxfmtConfig({ cwd, useCache: false })
 
-      expect(config).toEqual(expected)
+      expect(config).toStrictEqual(expected)
     },
   )
 
@@ -282,7 +247,7 @@ describe(loadOxfmtConfig, () => {
     const config = await loadOxfmtConfig({ cwd, useCache: false })
 
     expect(config.tabWidth).toBeUndefined()
-    expect(config.overrides).toEqual([
+    expect(config.overrides).toStrictEqual([
       {
         files: ['*.md'],
         options: { printWidth: 72 },
@@ -321,7 +286,7 @@ describe(loadOxfmtConfig, () => {
     expect(config.printWidth).toBeUndefined()
     expect(config.tabWidth).toBeUndefined()
     expect(config.useTabs).toBeUndefined()
-    expect(config.overrides).toEqual([
+    expect(config.overrides).toStrictEqual([
       {
         files: ['**'],
         options: {
@@ -341,7 +306,7 @@ describe(loadOxfmtConfig, () => {
 
     expect(config.semi).toBeFalsy()
     expect(config.tabWidth).toBeUndefined()
-    expect(config.overrides).toEqual([
+    expect(config.overrides).toStrictEqual([
       {
         files: ['packages/app/src/**/*.ts'],
         options: { printWidth: 120 },
@@ -373,7 +338,7 @@ describe(loadOxfmtConfig, () => {
       useCache: false,
     })
 
-    expect(config).toEqual({})
+    expect(config).toStrictEqual({})
   })
 
   it('finds .editorconfig in cwd when onlyCwd is true', async () => {
@@ -385,7 +350,7 @@ describe(loadOxfmtConfig, () => {
       useCache: false,
     })
 
-    expect(config).toEqual({
+    expect(config).toStrictEqual({
       endOfLine: 'crlf',
       insertFinalNewline: false,
       printWidth: 90,
@@ -406,7 +371,7 @@ describe(loadOxfmtConfig, () => {
     })
 
     expect(withWalk.tabWidth).toBeUndefined()
-    expect(withoutWalk).toEqual({})
+    expect(withoutWalk).toStrictEqual({})
   })
 
   it('resolves .editorconfig from editorconfig.cwd instead of config directory', async () => {

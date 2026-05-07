@@ -82,6 +82,81 @@ export interface OxfmtOptions extends FormatConfig {
 }
 
 /**
+ * Result object with metadata about resolved oxfmt config.
+ */
+export interface LoadOxfmtConfigResult {
+  /**
+   * Final merged config (oxfmt + optional editorconfig mapping)
+   */
+  config: OxfmtOptions
+  /**
+   * Absolute path of resolved config file
+   */
+  filepath?: string
+  /**
+   * Directory of resolved config file
+   */
+  dirname?: string
+}
+
+/**
+ * Options for resolving whether a single file should be ignored.
+ */
+export interface ResolveOxfmtIgnoreOptions {
+  /**
+   * Current working directory.
+   * Also the base directory for default .gitignore/.prettierignore lookup.
+   */
+  cwd?: string
+  /**
+   * File path to test.
+   */
+  filepath: string
+  /**
+   * Explicit oxfmt config path.
+   * When provided, nested config lookup is disabled (same as oxfmt CLI -c).
+   */
+  configPath?: string
+  /**
+   * Ignore files to use instead of cwd .gitignore/.prettierignore.
+   * Can be passed multiple times in CLI style.
+   */
+  ignorePath?: string[]
+  /**
+   * Whether node_modules should be included.
+   */
+  withNodeModules?: boolean
+  /**
+   * Disable nested config lookup.
+   */
+  disableNestedConfig?: boolean
+  /**
+   * Whether to use in-memory cache.
+   */
+  useCache?: boolean
+}
+
+/**
+ * Ignore resolution result.
+ */
+export interface ResolveOxfmtIgnoreResult {
+  /**
+   * Whether the file should be ignored.
+   */
+  ignored: boolean
+  /**
+   * Matched ignore source.
+   */
+  reason?:
+    | 'default-dir'
+    | 'lockfile'
+    | 'gitignore'
+    | 'prettierignore'
+    | 'ignore-path'
+    | 'config-ignore-patterns'
+}
+
+/**
  * @deprecated Use `OxfmtConfigOverride` instead
  */
 export type FormatOptionOverride = OxfmtConfigOverride

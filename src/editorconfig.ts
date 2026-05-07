@@ -303,7 +303,7 @@ function rebaseEditorconfigPattern(
     return pattern
   }
 
-  return `${relativePrefix}/${pattern.replace(/^\//, '')}`
+  return `${relativePrefix}/${pattern.replace(/^\//u, '')}`
 }
 
 /**
