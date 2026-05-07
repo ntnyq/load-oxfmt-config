@@ -9,6 +9,7 @@ import {
   EDITORCONFIG_GLOBAL_SECTION_NAMES,
 } from './constants'
 import type { OxfmtConfigOverride, OxfmtOptions } from './types'
+import { toPosixPath } from './utils'
 
 /**
  * Oxfmt reads these .editorconfig properties
@@ -128,16 +129,6 @@ export async function resolveEditorconfigPath(
   }
 
   return undefined
-}
-
-/**
- * Normalizes a file path to POSIX separators for glob compatibility.
- *
- * @param path - The path to normalize.
- * @returns The path with forward slashes.
- */
-function toPosixPath(path: string) {
-  return path.replaceAll('\\', '/')
 }
 
 /**
@@ -303,7 +294,7 @@ function rebaseEditorconfigPattern(
     return pattern
   }
 
-  return `${relativePrefix}/${pattern.replace(/^\//, '')}`
+  return `${relativePrefix}/${pattern.replace(/^\//u, '')}`
 }
 
 /**
