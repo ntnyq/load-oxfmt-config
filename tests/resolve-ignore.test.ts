@@ -5,7 +5,7 @@ import { resolveOxfmtIgnore } from '../src'
 import { withTempDir } from './helpers'
 
 describe(resolveOxfmtIgnore, () => {
-  it('ignores default node_modules directory and can opt in with withNodeModules', async () => {
+  it('ignores default node_modules directory and can opt in with option withNodeModules', async () => {
     await withTempDir('oxfmt-ignore-default-', async cwd => {
       const filepath = join(cwd, 'node_modules', 'pkg', 'index.js')
       await mkdir(join(cwd, 'node_modules', 'pkg'), { recursive: true })
@@ -23,6 +23,18 @@ describe(resolveOxfmtIgnore, () => {
         reason: 'default-dir',
       })
       expect(included).toStrictEqual({ ignored: false })
+    })
+  })
+
+  it('does not treat a filename that matches an ignored directory name as ignored', async () => {
+    await withTempDir('oxfmt-ignore-filename-collision-', async cwd => {
+      const filepath = join(cwd, 'src', 'node_modules')
+      await mkdir(join(cwd, 'src'), { recursive: true })
+      await writeFile(filepath, 'export const a = 1\n', 'utf8')
+
+      const result = await resolveOxfmtIgnore({ cwd, filepath })
+
+      expect(result).toStrictEqual({ ignored: false })
     })
   })
 

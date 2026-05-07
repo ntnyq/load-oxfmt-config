@@ -32,7 +32,7 @@ function isDefaultIgnoredDir(
   const directories = options.withNodeModules
     ? DEFAULT_IGNORED_DIRS.filter(dir => dir !== 'node_modules')
     : DEFAULT_IGNORED_DIRS
-  const segments = splitPathSegments(filepath)
+  const segments = splitPathSegments(dirname(filepath))
 
   return directories.some(dir => segments.includes(dir))
 }

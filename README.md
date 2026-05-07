@@ -294,11 +294,9 @@ When `configPath` is not provided, the loader automatically searches for config 
 
 1. **Search order:** Starts from `cwd` and walks up to parent directories
 2. **Supported filenames:**
-
-- `.oxfmtrc.json`
-- `.oxfmtrc.jsonc`
-- `oxfmt.config.ts`
-
+   - `.oxfmtrc.json`
+   - `.oxfmtrc.jsonc`
+   - `oxfmt.config.ts`
 3. **Stops when:**
    - A valid config file is found
    - Reaches the filesystem root
@@ -345,7 +343,7 @@ export default {
 }
 ```
 
-When `configPath` is passed explicitly, extensions `.json`, `.jsonc`, `.ts`, `.mts`, `.cts`, `.js`, `.mjs`, and `.cjs` are supported.
+When `configPath` is passed explicitly, extensions `.json`, `.jsonc`, `.ts`, `.mts`, `.cts`, `.js`, `.mjs`, and `.cjs` are supported. Extensionless paths are also accepted and parsed as JSON.
 
 ## `.editorconfig` Support
 
