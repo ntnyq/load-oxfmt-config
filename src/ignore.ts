@@ -10,10 +10,7 @@ import {
   DEFAULT_IGNORED_LOCKFILES,
 } from './constants'
 import { loadOxfmtConfigResult } from './core'
-import type {
-  ResolveOxfmtIgnoreOptions,
-  ResolveOxfmtIgnoreResult,
-} from './types'
+import type { IsOxfmtIgnoredOptions, IsOxfmtIgnoredResult } from './types'
 import { cachePromise, splitPathSegments, toPosixPath } from './utils'
 
 const ignoreMatcherCache = new Map<string, Promise<Ignore | undefined>>()
@@ -111,6 +108,10 @@ async function matchIgnoreFile(
   }
 
   const relativeToIgnore = relativeSafe(dirname(ignoreFilePath), filepath)
+  if (relativeToIgnore === '..' || relativeToIgnore.startsWith('../')) {
+    return false
+  }
+
   return matcher.ignores(relativeToIgnore)
 }
 
@@ -169,17 +170,17 @@ function matchConfigIgnorePatterns(
  *
  * @example
  * ```ts
- * import { resolveOxfmtIgnore } from 'load-oxfmt-config'
+ * import { isOxfmtIgnored } from 'load-oxfmt-config'
  *
- * const result = await resolveOxfmtIgnore({
+ * const result = await isOxfmtIgnored({
  *   cwd: process.cwd(),
  *   filepath: 'src/generated/file.ts',
  * })
  * ```
  */
-export async function resolveOxfmtIgnore(
-  options: ResolveOxfmtIgnoreOptions,
-): Promise<ResolveOxfmtIgnoreResult> {
+export async function isOxfmtIgnored(
+  options: IsOxfmtIgnoredOptions,
+): Promise<IsOxfmtIgnoredResult> {
   const useCache = options.useCache !== false
   const cwd = resolve(options.cwd ?? process.cwd())
   const filepath = isAbsolute(options.filepath)
@@ -198,7 +199,11 @@ export async function resolveOxfmtIgnore(
     return { ignored: true, reason: 'lockfile' }
   }
 
-  const explicitIgnorePaths = options.ignorePath?.map(path =>
+  const normalizedIgnorePaths =
+    typeof options.ignorePath === 'string'
+      ? [options.ignorePath]
+      : options.ignorePath
+  const explicitIgnorePaths = normalizedIgnorePaths?.map(path =>
     resolveIgnoreFilePath(path, cwd),
   )
 
@@ -226,6 +231,7 @@ export async function resolveOxfmtIgnore(
         ? cwd
         : dirname(filepath),
     ...(options.configPath ? { configPath: options.configPath } : {}),
+    editorconfig: false,
     useCache,
   })
 

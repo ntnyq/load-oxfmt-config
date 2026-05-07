@@ -1,18 +1,18 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { chmod, mkdir, writeFile } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { resolveOxfmtIgnore } from '../src'
+import { isOxfmtIgnored } from '../src'
 import { withTempDir } from './helpers'
 
-describe(resolveOxfmtIgnore, () => {
+describe(isOxfmtIgnored, () => {
   it('ignores default node_modules directory and can opt in with option withNodeModules', async () => {
     await withTempDir('oxfmt-ignore-default-', async cwd => {
       const filepath = join(cwd, 'node_modules', 'pkg', 'index.js')
       await mkdir(join(cwd, 'node_modules', 'pkg'), { recursive: true })
       await writeFile(filepath, 'export {}\n', 'utf8')
 
-      const ignoredByDefault = await resolveOxfmtIgnore({ cwd, filepath })
-      const included = await resolveOxfmtIgnore({
+      const ignoredByDefault = await isOxfmtIgnored({ cwd, filepath })
+      const included = await isOxfmtIgnored({
         cwd,
         filepath,
         withNodeModules: true,
@@ -32,7 +32,7 @@ describe(resolveOxfmtIgnore, () => {
       await mkdir(join(cwd, 'src'), { recursive: true })
       await writeFile(filepath, 'export const a = 1\n', 'utf8')
 
-      const result = await resolveOxfmtIgnore({ cwd, filepath })
+      const result = await isOxfmtIgnored({ cwd, filepath })
 
       expect(result).toStrictEqual({ ignored: false })
     })
@@ -43,7 +43,7 @@ describe(resolveOxfmtIgnore, () => {
       const filepath = join(cwd, 'pnpm-lock.yaml')
       await writeFile(filepath, 'lockfileVersion: 9\n', 'utf8')
 
-      const result = await resolveOxfmtIgnore({ cwd, filepath })
+      const result = await isOxfmtIgnored({ cwd, filepath })
 
       expect(result).toStrictEqual({ ignored: true, reason: 'lockfile' })
     })
@@ -60,11 +60,11 @@ describe(resolveOxfmtIgnore, () => {
       await writeFile(gitignoredFile, 'console.log(1)\n', 'utf8')
       await writeFile(prettierIgnoredFile, 'snapshot\n', 'utf8')
 
-      const byGitignore = await resolveOxfmtIgnore({
+      const byGitignore = await isOxfmtIgnored({
         cwd,
         filepath: gitignoredFile,
       })
-      const byPrettierignore = await resolveOxfmtIgnore({
+      const byPrettierignore = await isOxfmtIgnored({
         cwd,
         filepath: prettierIgnoredFile,
       })
@@ -77,6 +77,37 @@ describe(resolveOxfmtIgnore, () => {
     })
   })
 
+  it('ignores editorconfig read errors when resolving ignore status', async () => {
+    await withTempDir('oxfmt-ignore-editorconfig-irrelevant-', async cwd => {
+      const filepath = join(cwd, 'src', 'a.ts')
+      const editorconfigPath = join(cwd, '.editorconfig')
+      await mkdir(join(cwd, 'src'), { recursive: true })
+      await writeFile(filepath, 'export const a = 1\n', 'utf8')
+      await writeFile(join(cwd, '.oxfmtrc.json'), '{}\n', 'utf8')
+      await writeFile(editorconfigPath, '[*]\nindent_size = 2\n', 'utf8')
+      await chmod(editorconfigPath, 0o000)
+
+      try {
+        await expect(isOxfmtIgnored({ cwd, filepath })).resolves.toStrictEqual({
+          ignored: false,
+        })
+      } finally {
+        await chmod(editorconfigPath, 0o644)
+      }
+    })
+  })
+
+  it('does not throw when filepath is outside ignore file directory scope', async () => {
+    await withTempDir('oxfmt-ignore-parent-path-', async cwd => {
+      await writeFile(join(cwd, '.gitignore'), 'dist/**\n', 'utf8')
+      const filepath = resolve(cwd, '..', 'outside.ts')
+
+      await expect(isOxfmtIgnored({ cwd, filepath })).resolves.toStrictEqual({
+        ignored: false,
+      })
+    })
+  })
+
   it('resolves relative filepath against provided cwd', async () => {
     await withTempDir('oxfmt-ignore-relative-filepath-', async cwd => {
       const filepath = join(cwd, 'dist', 'a.js')
@@ -84,7 +115,7 @@ describe(resolveOxfmtIgnore, () => {
       await writeFile(join(cwd, '.gitignore'), 'dist/**\n', 'utf8')
       await writeFile(filepath, 'console.log(1)\n', 'utf8')
 
-      const result = await resolveOxfmtIgnore({
+      const result = await isOxfmtIgnored({
         cwd,
         filepath: 'dist/a.js',
       })
@@ -100,7 +131,7 @@ describe(resolveOxfmtIgnore, () => {
       await mkdir(join(cwd, 'src'), { recursive: true })
       await writeFile(filepath, 'export const a = 1\n', 'utf8')
 
-      await expect(resolveOxfmtIgnore({ cwd, filepath })).rejects.toThrow(
+      await expect(isOxfmtIgnored({ cwd, filepath })).rejects.toThrow(
         /EISDIR|directory/u,
       )
     })
@@ -117,12 +148,12 @@ describe(resolveOxfmtIgnore, () => {
       await writeFile(distFile, 'console.log(1)\n', 'utf8')
       await writeFile(customFile, 'console.log(1)\n', 'utf8')
 
-      const distResult = await resolveOxfmtIgnore({
+      const distResult = await isOxfmtIgnored({
         cwd,
         filepath: distFile,
         ignorePath: ['.customignore'],
       })
-      const customResult = await resolveOxfmtIgnore({
+      const customResult = await isOxfmtIgnored({
         cwd,
         filepath: customFile,
         ignorePath: ['.customignore'],
@@ -153,7 +184,7 @@ describe(resolveOxfmtIgnore, () => {
         'utf8',
       )
 
-      const result = await resolveOxfmtIgnore({ cwd, filepath })
+      const result = await isOxfmtIgnored({ cwd, filepath })
 
       expect(result).toStrictEqual({
         ignored: true,
@@ -179,8 +210,8 @@ describe(resolveOxfmtIgnore, () => {
         'utf8',
       )
 
-      const nestedEnabled = await resolveOxfmtIgnore({ cwd, filepath })
-      const nestedDisabled = await resolveOxfmtIgnore({
+      const nestedEnabled = await isOxfmtIgnored({ cwd, filepath })
+      const nestedDisabled = await isOxfmtIgnored({
         cwd,
         filepath,
         disableNestedConfig: true,
@@ -212,13 +243,62 @@ describe(resolveOxfmtIgnore, () => {
         'utf8',
       )
 
-      const result = await resolveOxfmtIgnore({
+      const result = await isOxfmtIgnored({
         cwd,
         filepath,
         configPath,
       })
 
       expect(result).toStrictEqual({
+        ignored: true,
+        reason: 'config-ignore-patterns',
+      })
+    })
+  })
+
+  it('supports negated config ignorePatterns', async () => {
+    await withTempDir('oxfmt-ignore-negated-pattern-', async cwd => {
+      const filepath = join(cwd, 'src', 'keep.ts')
+      await mkdir(join(cwd, 'src'), { recursive: true })
+      await writeFile(filepath, 'export const keep = 1\n', 'utf8')
+      await writeFile(
+        join(cwd, '.oxfmtrc.json'),
+        JSON.stringify({ ignorePatterns: ['src/**', '!src/keep.ts'] }),
+        'utf8',
+      )
+
+      const result = await isOxfmtIgnored({ cwd, filepath })
+
+      expect(result).toStrictEqual({ ignored: false })
+    })
+  })
+
+  it('applies config ignorePatterns in order with last match taking precedence', async () => {
+    await withTempDir('oxfmt-ignore-pattern-order-', async cwd => {
+      const filepath = join(cwd, 'src', 'a.ts')
+      await mkdir(join(cwd, 'src'), { recursive: true })
+      await writeFile(filepath, 'export const a = 1\n', 'utf8')
+
+      await writeFile(
+        join(cwd, '.oxfmtrc.json'),
+        JSON.stringify({ ignorePatterns: ['src/**', '!src/**'] }),
+        'utf8',
+      )
+      const unignored = await isOxfmtIgnored({ cwd, filepath })
+
+      await writeFile(
+        join(cwd, '.oxfmtrc.json'),
+        JSON.stringify({ ignorePatterns: ['!src/**', 'src/**'] }),
+        'utf8',
+      )
+      const ignored = await isOxfmtIgnored({
+        cwd,
+        filepath,
+        useCache: false,
+      })
+
+      expect(unignored).toStrictEqual({ ignored: false })
+      expect(ignored).toStrictEqual({
         ignored: true,
         reason: 'config-ignore-patterns',
       })

@@ -88,9 +88,9 @@ console.log(result.dirname) // /path/to/project (or undefined)
 ### Resolve Ignore Status
 
 ```ts
-import { resolveOxfmtIgnore } from 'load-oxfmt-config'
+import { isOxfmtIgnored } from 'load-oxfmt-config'
 
-const result = await resolveOxfmtIgnore({
+const result = await isOxfmtIgnored({
   cwd: '/path/to/project',
   filepath: '/path/to/project/src/generated/foo.ts',
 })
@@ -222,11 +222,13 @@ Resolve the absolute path to oxfmt config file.
 
 **Returns:** `Promise<string | undefined>` - Absolute path to config file, or `undefined` if not found.
 
-### `resolveOxfmtIgnore(options)`
+### `isOxfmtIgnored(options)`
 
 Resolve whether a file should be ignored with oxfmt CLI-like semantics.
 
-**Returns:** `Promise<ResolveOxfmtIgnoreResult>`
+**Returns:** `Promise<IsOxfmtIgnoredResult>`
+
+`ignorePath` accepts either a single path (`string`) or multiple paths (`string[]`).
 
 - `ignored` - Whether the file is ignored
 - `reason` - One of:
@@ -361,7 +363,7 @@ Only `[*]` is treated as a global section to match oxfmt. Other sections such as
 
 ## Ignore Strategy
 
-`resolveOxfmtIgnore()` applies two layers:
+`isOxfmtIgnored()` applies two layers:
 
 1. Global ignore
 2. Ignore patterns from the resolved oxfmt config (`ignorePatterns`)

@@ -102,7 +102,7 @@ export interface LoadOxfmtConfigResult {
 /**
  * Options for resolving whether a single file should be ignored.
  */
-export interface ResolveOxfmtIgnoreOptions {
+export interface IsOxfmtIgnoredOptions {
   /**
    * Current working directory.
    * Also the base directory for default .gitignore/.prettierignore lookup.
@@ -121,7 +121,7 @@ export interface ResolveOxfmtIgnoreOptions {
    * Ignore files to use instead of cwd .gitignore/.prettierignore.
    * Can be passed multiple times in CLI style.
    */
-  ignorePath?: string[]
+  ignorePath?: string | string[]
   /**
    * Whether node_modules should be included.
    */
@@ -139,7 +139,7 @@ export interface ResolveOxfmtIgnoreOptions {
 /**
  * Ignore resolution result.
  */
-export interface ResolveOxfmtIgnoreResult {
+export interface IsOxfmtIgnoredResult {
   /**
    * Whether the file should be ignored.
    */
