@@ -182,6 +182,8 @@ export async function isOxfmtIgnored(
   options: IsOxfmtIgnoredOptions,
 ): Promise<IsOxfmtIgnoredResult> {
   const useCache = options.useCache !== false
+  const includeConfigIgnorePatterns =
+    options.includeConfigIgnorePatterns !== false
   const cwd = resolve(options.cwd ?? process.cwd())
   const filepath = isAbsolute(options.filepath)
     ? resolve(options.filepath)
@@ -236,6 +238,7 @@ export async function isOxfmtIgnored(
   })
 
   if (
+    includeConfigIgnorePatterns &&
     configResult.dirname &&
     configResult.config.ignorePatterns &&
     configResult.config.ignorePatterns.length > 0 &&

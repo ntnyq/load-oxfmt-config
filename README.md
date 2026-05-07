@@ -191,7 +191,56 @@ Load and parse oxfmt configuration files, then merge supported `.editorconfig` f
 
 **Parameters:**
 
-- `options` - Optional configuration object
+- `options` - Optional configuration object (`Options`)
+
+Option fields:
+
+#### `cwd`
+
+- **Type:** `string`
+- **Default:** `process.cwd()`
+
+Current working directory to start searching for config files. The loader will walk up from this directory to find a config file.
+
+#### `configPath`
+
+- **Type:** `string`
+- **Default:** `undefined`
+
+Explicit path to the config file:
+
+- **Relative path:** Resolved relative to `cwd`
+- **Absolute path:** Used as-is
+- **When provided:** Skips auto-discovery and uses this path directly
+
+#### `useCache`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Enable in-memory caching for both path resolution and parsed config contents. When enabled:
+
+- Config file paths are cached to avoid repeated filesystem lookups
+- Parsed config objects are cached to avoid re-parsing
+- Subsequent calls with the same parameters return cached results instantly
+
+Set to `false` to force reload from disk on every call.
+
+#### `editorconfig`
+
+- **Type:** `boolean | EditorconfigOption`
+- **Default:** `true`
+
+Control how `.editorconfig` files are read and merged:
+
+- **`true`** — Read and merge the nearest `.editorconfig`, walking up from the config file's directory (or `cwd` when no config path is given).
+- **`false`** — Disable `.editorconfig` reading entirely.
+- **`EditorconfigOption`** — Enable with additional settings:
+
+| Property  | Type      | Default     | Description                                                                                                           |
+| --------- | --------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
+| `onlyCwd` | `boolean` | `false`     | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal.                                     |
+| `cwd`     | `string`  | `undefined` | Override the directory from which `.editorconfig` resolution starts, instead of the config file's directory or `cwd`. |
 
 **Returns:** `Promise<OxfmtOptions>` - Parsed and merged oxfmt configuration object. Returns empty object `{}` if no supported config file is found.
 
@@ -201,7 +250,56 @@ Load and parse oxfmt configuration files, merge supported `.editorconfig` fields
 
 **Parameters:**
 
-- `options` - Optional configuration object (same as `loadOxfmtConfig`)
+- `options` - Optional configuration object (`Options`)
+
+Option fields:
+
+#### `cwd`
+
+- **Type:** `string`
+- **Default:** `process.cwd()`
+
+Current working directory to start searching for config files. The loader will walk up from this directory to find a config file.
+
+#### `configPath`
+
+- **Type:** `string`
+- **Default:** `undefined`
+
+Explicit path to the config file:
+
+- **Relative path:** Resolved relative to `cwd`
+- **Absolute path:** Used as-is
+- **When provided:** Skips auto-discovery and uses this path directly
+
+#### `useCache`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Enable in-memory caching for both path resolution and parsed config contents. When enabled:
+
+- Config file paths are cached to avoid repeated filesystem lookups
+- Parsed config objects are cached to avoid re-parsing
+- Subsequent calls with the same parameters return cached results instantly
+
+Set to `false` to force reload from disk on every call.
+
+#### `editorconfig`
+
+- **Type:** `boolean | EditorconfigOption`
+- **Default:** `true`
+
+Control how `.editorconfig` files are read and merged:
+
+- **`true`** — Read and merge the nearest `.editorconfig`, walking up from the config file's directory (or `cwd` when no config path is given).
+- **`false`** — Disable `.editorconfig` reading entirely.
+- **`EditorconfigOption`** — Enable with additional settings:
+
+| Property  | Type      | Default     | Description                                                                                                           |
+| --------- | --------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
+| `onlyCwd` | `boolean` | `false`     | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal.                                     |
+| `cwd`     | `string`  | `undefined` | Override the directory from which `.editorconfig` resolution starts, instead of the config file's directory or `cwd`. |
 
 **Returns:** `Promise<LoadOxfmtConfigResult>`
 
@@ -226,9 +324,72 @@ Resolve the absolute path to oxfmt config file.
 
 Resolve whether a file should be ignored with oxfmt CLI-like semantics.
 
-**Returns:** `Promise<IsOxfmtIgnoredResult>`
+**Parameters:**
 
-`ignorePath` accepts either a single path (`string`) or multiple paths (`string[]`).
+- `options` - Required configuration object (`IsOxfmtIgnoredOptions`)
+
+Option fields:
+
+#### `cwd`
+
+- **Type:** `string`
+- **Default:** `process.cwd()`
+
+Current working directory.
+Also the base directory for default `.gitignore`/`.prettierignore` lookup.
+
+#### `filepath`
+
+- **Type:** `string`
+- **Default:** required
+
+File path to test.
+
+#### `configPath`
+
+- **Type:** `string`
+- **Default:** `undefined`
+
+Explicit oxfmt config path.
+When provided, nested config lookup is disabled (same as oxfmt CLI `-c`).
+
+#### `ignorePath`
+
+- **Type:** `string | string[]`
+- **Default:** `undefined`
+
+Ignore files to use instead of cwd `.gitignore`/`.prettierignore`.
+Can be passed multiple times in CLI style.
+
+#### `withNodeModules`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Whether `node_modules` should be included.
+
+#### `disableNestedConfig`
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Disable nested config lookup.
+
+#### `useCache`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Whether to use in-memory cache.
+
+#### `includeConfigIgnorePatterns`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Whether to include ignore patterns defined in the resolved config file.
+
+**Returns:** `Promise<IsOxfmtIgnoredResult>`
 
 - `ignored` - Whether the file is ignored
 - `reason` - One of:
@@ -238,57 +399,6 @@ Resolve whether a file should be ignored with oxfmt CLI-like semantics.
   - `prettierignore`
   - `ignore-path`
   - `config-ignore-patterns`
-
-## Options
-
-All options are optional.
-
-### `cwd`
-
-- **Type:** `string`
-- **Default:** `process.cwd()`
-
-Current working directory to start searching for config files. The loader will walk up from this directory to find a config file.
-
-### `configPath`
-
-- **Type:** `string`
-- **Default:** `undefined`
-
-Explicit path to the config file:
-
-- **Relative path:** Resolved relative to `cwd`
-- **Absolute path:** Used as-is
-- **When provided:** Skips auto-discovery and uses this path directly
-
-### `useCache`
-
-- **Type:** `boolean`
-- **Default:** `true`
-
-Enable in-memory caching for both path resolution and parsed config contents. When enabled:
-
-- Config file paths are cached to avoid repeated filesystem lookups
-- Parsed config objects are cached to avoid re-parsing
-- Subsequent calls with the same parameters return cached results instantly
-
-Set to `false` to force reload from disk on every call.
-
-### `editorconfig`
-
-- **Type:** `boolean | EditorconfigOption`
-- **Default:** `true`
-
-Control how `.editorconfig` files are read and merged:
-
-- **`true`** — Read and merge the nearest `.editorconfig`, walking up from the config file's directory (or `cwd` when no config path is given).
-- **`false`** — Disable `.editorconfig` reading entirely.
-- **`EditorconfigOption`** — Enable with additional settings:
-
-| Property  | Type      | Default     | Description                                                                                                           |
-| --------- | --------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
-| `onlyCwd` | `boolean` | `false`     | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal.                                     |
-| `cwd`     | `string`  | `undefined` | Override the directory from which `.editorconfig` resolution starts, instead of the config file's directory or `cwd`. |
 
 ## Config File Discovery
 
@@ -368,6 +478,8 @@ Only `[*]` is treated as a global section to match oxfmt. Other sections such as
 1. Global ignore
 2. Ignore patterns from the resolved oxfmt config (`ignorePatterns`)
 
+Set `includeConfigIgnorePatterns: false` to keep only global ignore behavior (skip config `ignorePatterns`).
+
 Global ignore includes:
 
 - Default ignored directories: `.git`, `.svn`, `.jj`, `node_modules`
@@ -382,6 +494,7 @@ Notes:
 - This package does not read parent `.gitignore` files or global gitignore settings.
 - The default lockfile list mirrors oxfmt documentation intent (`package-lock.json`, `pnpm-lock.yaml`, etc.) and common ecosystem lockfiles. It is not guaranteed to be a complete internal oxfmt list.
 - `ignorePatterns` are always interpreted relative to the resolved oxfmt config directory.
+- `includeConfigIgnorePatterns` defaults to `true` to preserve current behavior.
 - Nested config behavior follows oxfmt semantics:
   - default: nearest config from target file directory upward
   - `disableNestedConfig: true`: resolve from `cwd` only

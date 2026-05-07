@@ -124,16 +124,24 @@ export interface IsOxfmtIgnoredOptions {
   ignorePath?: string | string[]
   /**
    * Whether node_modules should be included.
+   * @default true
    */
   withNodeModules?: boolean
   /**
    * Disable nested config lookup.
+   * @default false
    */
   disableNestedConfig?: boolean
   /**
    * Whether to use in-memory cache.
+   * @default true
    */
   useCache?: boolean
+  /**
+   * Whether to include ignore patterns defined in the config file.
+   * @default true
+   */
+  includeConfigIgnorePatterns?: boolean
 }
 
 /**
