@@ -142,6 +142,12 @@ export interface IsOxfmtIgnoredOptions {
    * @default true
    */
   includeConfigIgnorePatterns?: boolean
+  /**
+   * Whether to load resolved oxfmt config when evaluating config ignore patterns.
+   * When false, only global ignore is applied and config loading is skipped.
+   * @default true
+   */
+  loadConfigForIgnorePatterns?: boolean
 }
 
 /**

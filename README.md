@@ -389,6 +389,14 @@ Whether to use in-memory cache.
 
 Whether to include ignore patterns defined in the resolved config file.
 
+#### `loadConfigForIgnorePatterns`
+
+- **Type:** `boolean`
+- **Default:** `true`
+
+Whether to load the resolved config file during ignore checks.
+When `false`, `isOxfmtIgnored()` only applies global ignore and skips config loading.
+
 **Returns:** `Promise<IsOxfmtIgnoredResult>`
 
 - `ignored` - Whether the file is ignored
@@ -478,7 +486,8 @@ Only `[*]` is treated as a global section to match oxfmt. Other sections such as
 1. Global ignore
 2. Ignore patterns from the resolved oxfmt config (`ignorePatterns`)
 
-Set `includeConfigIgnorePatterns: false` to keep only global ignore behavior (skip config `ignorePatterns`).
+Set `includeConfigIgnorePatterns: false` to skip config `ignorePatterns` matching.
+Set `loadConfigForIgnorePatterns: false` to skip config loading entirely and keep only global ignore behavior.
 
 Global ignore includes:
 
@@ -495,6 +504,7 @@ Notes:
 - The default lockfile list mirrors oxfmt documentation intent (`package-lock.json`, `pnpm-lock.yaml`, etc.) and common ecosystem lockfiles. It is not guaranteed to be a complete internal oxfmt list.
 - `ignorePatterns` are always interpreted relative to the resolved oxfmt config directory.
 - `includeConfigIgnorePatterns` defaults to `true` to preserve current behavior.
+- `loadConfigForIgnorePatterns` defaults to `true` to preserve current behavior.
 - Nested config behavior follows oxfmt semantics:
   - default: nearest config from target file directory upward
   - `disableNestedConfig: true`: resolve from `cwd` only

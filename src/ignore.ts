@@ -184,6 +184,8 @@ export async function isOxfmtIgnored(
   const useCache = options.useCache !== false
   const includeConfigIgnorePatterns =
     options.includeConfigIgnorePatterns !== false
+  const loadConfigForIgnorePatterns =
+    options.loadConfigForIgnorePatterns !== false
   const cwd = resolve(options.cwd ?? process.cwd())
   const filepath = isAbsolute(options.filepath)
     ? resolve(options.filepath)
@@ -225,6 +227,10 @@ export async function isOxfmtIgnored(
         }
       }
     }
+  }
+
+  if (!loadConfigForIgnorePatterns) {
+    return { ignored: false }
   }
 
   const configResult = await loadOxfmtConfigResult({

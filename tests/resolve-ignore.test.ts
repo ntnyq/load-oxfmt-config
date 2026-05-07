@@ -2,7 +2,7 @@ import { chmod, mkdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { isOxfmtIgnored } from '../src'
-import { withTempDir } from './helpers'
+import { fixturePath, withTempDir } from './helpers'
 
 describe(isOxfmtIgnored, () => {
   it('ignores default node_modules directory and can opt in with option withNodeModules', async () => {
@@ -220,6 +220,73 @@ describe(isOxfmtIgnored, () => {
         reason: 'config-ignore-patterns',
       })
       expect(excludeConfigPatterns).toStrictEqual({ ignored: false })
+    })
+  })
+
+  it('skips config loading when loadConfigForIgnorePatterns=false', async () => {
+    const cwd = fixturePath('load', 'invalid-json')
+    const filepath = join(cwd, 'src', 'a.ts')
+
+    await expect(
+      isOxfmtIgnored({
+        cwd,
+        filepath,
+        loadConfigForIgnorePatterns: false,
+      }),
+    ).resolves.toStrictEqual({ ignored: false })
+  })
+
+  it('throws config parse error when loadConfigForIgnorePatterns=true', async () => {
+    const cwd = fixturePath('load', 'invalid-json')
+    const filepath = join(cwd, 'src', 'a.ts')
+
+    await expect(
+      isOxfmtIgnored({
+        cwd,
+        filepath,
+        loadConfigForIgnorePatterns: true,
+        useCache: false,
+      }),
+    ).rejects.toThrow(/Unexpected token|JSON/u)
+  })
+
+  it('keeps global ignore strategy when loadConfigForIgnorePatterns=false', async () => {
+    await withTempDir('oxfmt-ignore-global-no-config-load-', async cwd => {
+      const nodeModulesFile = join(cwd, 'node_modules', 'pkg', 'index.js')
+      const lockfilePath = join(cwd, 'pnpm-lock.yaml')
+      const gitignoredFile = join(cwd, 'dist', 'a.js')
+      const prettierIgnoredFile = join(cwd, 'snapshots', 'a.snap')
+
+      await mkdir(join(cwd, 'node_modules', 'pkg'), { recursive: true })
+      await mkdir(join(cwd, 'dist'), { recursive: true })
+      await mkdir(join(cwd, 'snapshots'), { recursive: true })
+
+      await writeFile(nodeModulesFile, 'export {}\n', 'utf8')
+      await writeFile(lockfilePath, 'lockfileVersion: 9\n', 'utf8')
+      await writeFile(gitignoredFile, 'console.log(1)\n', 'utf8')
+      await writeFile(prettierIgnoredFile, 'snapshot\n', 'utf8')
+
+      await writeFile(join(cwd, '.gitignore'), 'dist/**\n', 'utf8')
+      await writeFile(join(cwd, '.prettierignore'), '*.snap\n', 'utf8')
+      await writeFile(join(cwd, '.oxfmtrc.json'), '{ invalid json }\n', 'utf8')
+
+      const options = { loadConfigForIgnorePatterns: false as const }
+
+      await expect(
+        isOxfmtIgnored({ cwd, filepath: nodeModulesFile, ...options }),
+      ).resolves.toStrictEqual({ ignored: true, reason: 'default-dir' })
+      await expect(
+        isOxfmtIgnored({ cwd, filepath: lockfilePath, ...options }),
+      ).resolves.toStrictEqual({ ignored: true, reason: 'lockfile' })
+      await expect(
+        isOxfmtIgnored({ cwd, filepath: gitignoredFile, ...options }),
+      ).resolves.toStrictEqual({ ignored: true, reason: 'gitignore' })
+      await expect(
+        isOxfmtIgnored({ cwd, filepath: prettierIgnoredFile, ...options }),
+      ).resolves.toStrictEqual({
+        ignored: true,
+        reason: 'prettierignore',
+      })
     })
   })
 
