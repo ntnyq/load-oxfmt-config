@@ -65,6 +65,35 @@ describe(resolveOxfmtIgnore, () => {
     })
   })
 
+  it('resolves relative filepath against provided cwd', async () => {
+    await withTempDir('oxfmt-ignore-relative-filepath-', async cwd => {
+      const filepath = join(cwd, 'dist', 'a.js')
+      await mkdir(join(cwd, 'dist'), { recursive: true })
+      await writeFile(join(cwd, '.gitignore'), 'dist/**\n', 'utf8')
+      await writeFile(filepath, 'console.log(1)\n', 'utf8')
+
+      const result = await resolveOxfmtIgnore({
+        cwd,
+        filepath: 'dist/a.js',
+      })
+
+      expect(result).toStrictEqual({ ignored: true, reason: 'gitignore' })
+    })
+  })
+
+  it('throws for non-missing ignore file read errors', async () => {
+    await withTempDir('oxfmt-ignore-read-error-', async cwd => {
+      const filepath = join(cwd, 'src', 'a.ts')
+      await mkdir(join(cwd, '.gitignore'), { recursive: true })
+      await mkdir(join(cwd, 'src'), { recursive: true })
+      await writeFile(filepath, 'export const a = 1\n', 'utf8')
+
+      await expect(resolveOxfmtIgnore({ cwd, filepath })).rejects.toThrow(
+        /EISDIR|directory/u,
+      )
+    })
+  })
+
   it('uses explicit ignorePath files instead of cwd .gitignore/.prettierignore', async () => {
     await withTempDir('oxfmt-ignore-explicit-', async cwd => {
       const distFile = join(cwd, 'dist', 'a.js')

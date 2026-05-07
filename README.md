@@ -411,7 +411,7 @@ try {
   const result = await loadOxfmtConfigResult()
   console.log(result.config)
 } catch (error) {
-  // Thrown when config file exists but contains invalid JSON
+  // Thrown when config file exists but contains invalid JSON/JSONC
   console.error('Failed to parse oxfmt config:', error.message)
 }
 ```

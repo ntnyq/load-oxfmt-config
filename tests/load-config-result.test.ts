@@ -102,4 +102,20 @@ describe(loadOxfmtConfigResult, () => {
       ).rejects.toThrow(/Unsupported oxfmt config extension/u)
     })
   })
+
+  it('throws for invalid explicit JSONC config', async () => {
+    await withTempDir('oxfmt-config-explicit-jsonc-invalid-', async cwd => {
+      const configPath = join(cwd, 'custom.config.jsonc')
+      await writeFile(configPath, '{\n  "printWidth": 100,,\n}\n', 'utf8')
+
+      await expect(
+        loadOxfmtConfigResult({
+          cwd,
+          configPath,
+          useCache: false,
+          editorconfig: false,
+        }),
+      ).rejects.toThrow(/Failed to parse oxfmt configuration file/u)
+    })
+  })
 })

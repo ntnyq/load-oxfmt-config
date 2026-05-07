@@ -1,4 +1,5 @@
-import { join } from 'node:path'
+import { join, relative, resolve } from 'node:path'
+import process from 'node:process'
 import { describe, expect, it } from 'vitest'
 import { resolveOxfmtrcPath } from '../src'
 import { fixturePath } from './helpers'
@@ -41,5 +42,14 @@ describe(resolveOxfmtrcPath, () => {
     const resolved = await resolveOxfmtrcPath(cwd, absoluteConfig)
 
     expect(resolved).toBe(absoluteConfig)
+  })
+
+  it('returns absolute paths even when cwd is relative', async () => {
+    const absoluteCwd = fixturePath('resolve', 'explicit-relative')
+    const relativeCwd = relative(process.cwd(), absoluteCwd)
+
+    const resolvedPath = await resolveOxfmtrcPath(relativeCwd, '.oxfmtrc.json')
+
+    expect(resolvedPath).toBe(resolve(absoluteCwd, '.oxfmtrc.json'))
   })
 })

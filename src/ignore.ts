@@ -4,7 +4,11 @@ import process from 'node:process'
 import ignore from 'ignore'
 import type { Ignore } from 'ignore'
 import picomatch from 'picomatch'
-import { DEFAULT_IGNORED_DIRS, DEFAULT_IGNORED_LOCKFILES } from './constants'
+import {
+  DEFAULT_IGNORE_FILES,
+  DEFAULT_IGNORED_DIRS,
+  DEFAULT_IGNORED_LOCKFILES,
+} from './constants'
 import { loadOxfmtConfigResult } from './core'
 import type {
   ResolveOxfmtIgnoreOptions,
@@ -61,7 +65,14 @@ function loadIgnoreMatcher(
         ig.add(content)
         return ig
       })
-      .catch(() => undefined)
+      .catch(error => {
+        const code = (error as NodeJS.ErrnoException).code
+        if (code === 'ENOENT' || code === 'ENOTDIR') {
+          return undefined
+        }
+
+        throw error
+      })
 
   if (!useCache) {
     return loadTask()
@@ -171,7 +182,9 @@ export async function resolveOxfmtIgnore(
 ): Promise<ResolveOxfmtIgnoreResult> {
   const useCache = options.useCache !== false
   const cwd = resolve(options.cwd ?? process.cwd())
-  const filepath = resolve(options.filepath)
+  const filepath = isAbsolute(options.filepath)
+    ? resolve(options.filepath)
+    : resolve(cwd, options.filepath)
 
   const defaultIgnoredDirOptions = options.withNodeModules
     ? { withNodeModules: true }
@@ -196,14 +209,14 @@ export async function resolveOxfmtIgnore(
       }
     }
   } else {
-    const gitignorePath = resolve(cwd, '.gitignore')
-    if (await matchIgnoreFile(filepath, gitignorePath, useCache)) {
-      return { ignored: true, reason: 'gitignore' }
-    }
-
-    const prettierignorePath = resolve(cwd, '.prettierignore')
-    if (await matchIgnoreFile(filepath, prettierignorePath, useCache)) {
-      return { ignored: true, reason: 'prettierignore' }
+    for (const ignoreFile of DEFAULT_IGNORE_FILES) {
+      const ignorePath = resolve(cwd, ignoreFile)
+      if (await matchIgnoreFile(filepath, ignorePath, useCache)) {
+        return {
+          ignored: true,
+          reason: ignoreFile === '.gitignore' ? 'gitignore' : 'prettierignore',
+        }
+      }
     }
   }
 

@@ -1,7 +1,8 @@
 import { readFile, stat } from 'node:fs/promises'
-import { extname, isAbsolute, join } from 'node:path'
+import { extname, isAbsolute, join, resolve } from 'node:path'
 import { interopDefault } from '@ntnyq/utils'
-import { parse as parseJSONC } from 'jsonc-parser'
+import type { ParseError } from 'jsonc-parser'
+import { parse as parseJSONC, printParseErrorCode } from 'jsonc-parser'
 import {
   OXFMT_CONFIG_FILES,
   OXFMT_EXPLICIT_CONFIG_EXTENSIONS,
@@ -60,11 +61,13 @@ export async function resolveOxfmtrcPath(
   cwd: string,
   configPath?: string,
 ): Promise<string | undefined> {
+  const resolvedCwd = resolve(cwd)
+
   if (configPath) {
-    return isAbsolute(configPath) ? configPath : join(cwd, configPath)
+    return isAbsolute(configPath) ? configPath : join(resolvedCwd, configPath)
   }
 
-  let currentDir = cwd
+  let currentDir = resolvedCwd
 
   while (true) {
     for (const filename of OXFMT_CONFIG_FILES) {
@@ -120,7 +123,18 @@ export async function readConfigFromFile(
   const content = await readFile(resolvedPath, 'utf8')
 
   if (extension === '.jsonc') {
-    return parseJSONC(content) as OxfmtOptions
+    const parseErrors: ParseError[] = []
+    const parsed = parseJSONC(content, parseErrors)
+    if (parseErrors.length > 0) {
+      const firstError = parseErrors[0]
+      const errorCode =
+        firstError === undefined
+          ? 'Unknown'
+          : printParseErrorCode(firstError.error)
+      throw new Error(`Invalid JSONC syntax: ${errorCode}`)
+    }
+
+    return parsed as OxfmtOptions
   }
 
   if (extension === '.json') {
