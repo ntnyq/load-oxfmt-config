@@ -15,7 +15,11 @@ import {
   readEditorconfigFromFile,
   resolveEditorconfigPath,
 } from './editorconfig'
-import type { LoadOxfmtConfigResult, Options, OxfmtOptions } from './types'
+import type {
+  LoadOxfmtConfigOptions,
+  LoadOxfmtConfigResult,
+  OxfmtOptions,
+} from './types'
 import { cachePromise } from './utils'
 
 // Cache resolved config paths keyed by cwd + configPath
@@ -41,7 +45,7 @@ export { resolveOxfmtrcPath } from './config-file'
  * ```
  */
 export async function loadOxfmtConfigResult(
-  options: Options = {},
+  options: LoadOxfmtConfigOptions = {},
 ): Promise<LoadOxfmtConfigResult> {
   const useCache = options.useCache !== false
   const cwd = resolve(options.cwd || process.cwd())

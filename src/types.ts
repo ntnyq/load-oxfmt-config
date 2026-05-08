@@ -41,7 +41,7 @@ export interface OxfmtConfigOverride {
 }
 
 // Options for loading oxfmt configuration
-export interface Options {
+export interface LoadOxfmtConfigOptions {
   /**
    * Path to the configuration file
    */
@@ -124,7 +124,7 @@ export interface IsOxfmtIgnoredOptions {
   ignorePath?: string | string[]
   /**
    * Whether node_modules should be included.
-   * @default true
+   * @default false
    */
   withNodeModules?: boolean
   /**
@@ -174,3 +174,8 @@ export interface IsOxfmtIgnoredResult {
  * @deprecated Use `OxfmtConfigOverride` instead
  */
 export type FormatOptionOverride = OxfmtConfigOverride
+
+/**
+ * @deprecated Use `LoadOxfmtConfigOptions` instead.
+ */
+export type Options = LoadOxfmtConfigOptions

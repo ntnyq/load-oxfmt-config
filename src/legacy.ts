@@ -1,5 +1,5 @@
 import { loadOxfmtConfigResult } from './core'
-import type { Options, OxfmtOptions } from './types'
+import type { LoadOxfmtConfigOptions, OxfmtOptions } from './types'
 
 /**
  * Legacy API that returns only the merged config object.
@@ -20,7 +20,7 @@ import type { Options, OxfmtOptions } from './types'
  * ```
  */
 export async function loadOxfmtConfig(
-  options: Options = {},
+  options: LoadOxfmtConfigOptions = {},
 ): Promise<OxfmtOptions> {
   const result = await loadOxfmtConfigResult(options)
   return result.config

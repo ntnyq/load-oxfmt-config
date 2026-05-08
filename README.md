@@ -191,7 +191,7 @@ Load and parse oxfmt configuration files, then merge supported `.editorconfig` f
 
 **Parameters:**
 
-- `options` - Optional configuration object (`Options`)
+- `options` - Optional configuration object (`LoadOxfmtConfigOptions`)
 
 Option fields:
 
@@ -250,7 +250,7 @@ Load and parse oxfmt configuration files, merge supported `.editorconfig` fields
 
 **Parameters:**
 
-- `options` - Optional configuration object (`Options`)
+- `options` - Optional configuration object (`LoadOxfmtConfigOptions`)
 
 Option fields:
 
@@ -364,7 +364,7 @@ Can be passed multiple times in CLI style.
 #### `withNodeModules`
 
 - **Type:** `boolean`
-- **Default:** `true`
+- **Default:** `false`
 
 Whether `node_modules` should be included.
 
@@ -500,6 +500,10 @@ Global ignore includes:
 Notes:
 
 - `node_modules` can be included by passing `withNodeModules: true`.
+
+Type compatibility note:
+
+- `Options` is still exported as a deprecated alias of `LoadOxfmtConfigOptions`.
 - This package does not read parent `.gitignore` files or global gitignore settings.
 - The default lockfile list mirrors oxfmt documentation intent (`package-lock.json`, `pnpm-lock.yaml`, etc.) and common ecosystem lockfiles. It is not guaranteed to be a complete internal oxfmt list.
 - `ignorePatterns` are always interpreted relative to the resolved oxfmt config directory.
