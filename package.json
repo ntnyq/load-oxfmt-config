@@ -1,6 +1,6 @@
 {
   "name": "load-oxfmt-config",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Load oxfmt config files and merge supported .editorconfig options.",
   "keywords": [
     "editorconfig",
