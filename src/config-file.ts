@@ -124,7 +124,10 @@ export async function readConfigFromFile(
 
   if (extension === '.jsonc') {
     const parseErrors: ParseError[] = []
-    const parsed = parseJSONC(content, parseErrors)
+    const parsed = parseJSONC(content, parseErrors, {
+      allowTrailingComma: true,
+      allowEmptyContent: true,
+    })
     if (parseErrors.length > 0) {
       const firstError = parseErrors[0]
       const errorCode =
@@ -134,7 +137,7 @@ export async function readConfigFromFile(
       throw new Error(`Invalid JSONC syntax: ${errorCode}`)
     }
 
-    return parsed as OxfmtOptions
+    return (parsed ?? {}) as OxfmtOptions
   }
 
   if (extension === '.json') {

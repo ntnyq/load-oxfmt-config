@@ -87,6 +87,45 @@ describe(loadOxfmtConfigResult, () => {
     })
   })
 
+  it('loads explicit JSONC config with trailing comma', async () => {
+    await withTempDir(
+      'oxfmt-config-explicit-jsonc-trailing-comma-',
+      async cwd => {
+        const configPath = join(cwd, 'custom.config.jsonc')
+        await writeFile(
+          configPath,
+          '{\n  // comment\n  "printWidth": 110,\n}\n',
+          'utf8',
+        )
+
+        const result = await loadOxfmtConfigResult({
+          cwd,
+          configPath,
+          useCache: false,
+          editorconfig: false,
+        })
+
+        expect(result.config).toStrictEqual({ printWidth: 110 })
+      },
+    )
+  })
+
+  it('loads explicit empty JSONC config as empty object', async () => {
+    await withTempDir('oxfmt-config-explicit-jsonc-empty-', async cwd => {
+      const configPath = join(cwd, 'custom.config.jsonc')
+      await writeFile(configPath, '', 'utf8')
+
+      const result = await loadOxfmtConfigResult({
+        cwd,
+        configPath,
+        useCache: false,
+        editorconfig: false,
+      })
+
+      expect(result.config).toStrictEqual({})
+    })
+  })
+
   it('throws for unsupported explicit config extension', async () => {
     await withTempDir('oxfmt-config-explicit-unsupported-', async cwd => {
       const configPath = join(cwd, 'custom.config.yaml')
