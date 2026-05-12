@@ -12,7 +12,7 @@ import ignore from 'ignore'
 import type { Ignore } from 'ignore'
 import picomatch from 'picomatch'
 import { DEFAULT_IGNORED_DIRS, DEFAULT_IGNORED_LOCKFILES } from './constants'
-import { loadOxfmtConfigResult } from './core'
+import { loadOxfmtConfig } from './core'
 import type { IsOxfmtIgnoredOptions, IsOxfmtIgnoredResult } from './types'
 import { cachePromise, splitPathSegments, toPosixPath } from './utils'
 
@@ -328,7 +328,7 @@ export async function isOxfmtIgnored(
     return { ignored: false }
   }
 
-  const configResult = await loadOxfmtConfigResult({
+  const configResult = await loadOxfmtConfig({
     cwd:
       options.configPath || options.disableNestedConfig
         ? cwd

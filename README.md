@@ -38,19 +38,19 @@ pnpm add load-oxfmt-config
 Load config from current directory or parent directories:
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
 // Automatically searches for oxfmt config files and the nearest .editorconfig
-const result = await loadOxfmtConfigResult()
+const result = await loadOxfmtConfig()
 console.log(result.config) // { printWidth: 80, ... }
 ```
 
 ### Merge With `.editorconfig`
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
-const result = await loadOxfmtConfigResult({ cwd: '/path/to/project' })
+const result = await loadOxfmtConfig({ cwd: '/path/to/project' })
 
 // Returns one merged static config object
 console.log(result.config)
@@ -66,9 +66,9 @@ console.log(result.config)
 ### Specify Working Directory
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
-const result = await loadOxfmtConfigResult({
+const result = await loadOxfmtConfig({
   cwd: '/path/to/project',
 })
 ```
@@ -76,9 +76,9 @@ const result = await loadOxfmtConfigResult({
 ### Get Config Metadata
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
-const result = await loadOxfmtConfigResult({ cwd: '/path/to/project' })
+const result = await loadOxfmtConfig({ cwd: '/path/to/project' })
 
 console.log(result.config) // merged oxfmt options
 console.log(result.filepath) // /path/to/project/.oxfmtrc.json (or undefined)
@@ -102,16 +102,16 @@ console.log(result)
 ### Explicit Config Path
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
 // Relative path (resolved relative to cwd)
-const result = await loadOxfmtConfigResult({
+const result = await loadOxfmtConfig({
   configPath: 'configs/.oxfmtrc.json',
   cwd: '/path/to/project',
 })
 
 // Absolute path
-const absoluteResult = await loadOxfmtConfigResult({
+const absoluteResult = await loadOxfmtConfig({
   configPath: '/absolute/path/to/.oxfmtrc.json',
 })
 ```
@@ -119,10 +119,10 @@ const absoluteResult = await loadOxfmtConfigResult({
 ### Disable `.editorconfig`
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
 // Skip .editorconfig reading entirely
-const result = await loadOxfmtConfigResult({
+const result = await loadOxfmtConfig({
   editorconfig: false,
 })
 ```
@@ -130,10 +130,10 @@ const result = await loadOxfmtConfigResult({
 ### Limit `.editorconfig` to `cwd`
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
 // Only look in the cwd directory itself, no upward traversal
-const result = await loadOxfmtConfigResult({
+const result = await loadOxfmtConfig({
   editorconfig: { onlyCwd: true },
 })
 ```
@@ -141,10 +141,10 @@ const result = await loadOxfmtConfigResult({
 ### Override `.editorconfig` Search Directory
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
 // Search .editorconfig from a custom directory instead of the config file's directory
-const result = await loadOxfmtConfigResult({
+const result = await loadOxfmtConfig({
   editorconfig: {
     cwd: '/path/to/editorconfig-dir',
   },
@@ -154,10 +154,10 @@ const result = await loadOxfmtConfigResult({
 ### Disable Caching
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
 // Force reload from disk, bypassing cache
-const result = await loadOxfmtConfigResult({
+const result = await loadOxfmtConfig({
   useCache: false,
 })
 ```
@@ -174,7 +174,7 @@ console.log(configPath) // '/path/to/.oxfmtrc.json' or undefined
 
 ## API
 
-### `loadOxfmtConfigResult(options?)`
+### `loadOxfmtConfig(options?)`
 
 Load and parse oxfmt configuration files, merge supported `.editorconfig` fields, and return metadata for the resolved config file.
 
@@ -457,15 +457,15 @@ This means explicit oxfmt config values always win over `.editorconfig` fallback
 
 ## Limitations
 
-`loadOxfmtConfigResult()` returns a static merged `OxfmtOptions` shape. That means `.editorconfig` support is represented as merged root + overrides config data, not as per-file runtime evaluation. In practice this works well for common root settings and section-based overrides, but it is not a full replacement for oxfmt's own file-by-file config resolution.
+`loadOxfmtConfig()` returns a static merged `OxfmtOptions` shape. That means `.editorconfig` support is represented as merged root + overrides config data, not as per-file runtime evaluation. In practice this works well for common root settings and section-based overrides, but it is not a full replacement for oxfmt's own file-by-file config resolution.
 
 ## Error Handling
 
 ```ts
-import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+import { loadOxfmtConfig } from 'load-oxfmt-config'
 
 try {
-  const result = await loadOxfmtConfigResult()
+  const result = await loadOxfmtConfig()
   console.log(result.config)
 } catch (error) {
   // Thrown when config file exists but contains invalid JSON/JSONC

@@ -5,7 +5,7 @@ Guidance for AI coding agents working in this repository.
 ## Scope
 
 - Maintain a small ESM TypeScript library that:
-  - Loads oxfmt config with metadata via `loadOxfmtConfigResult()`.
+  - Loads oxfmt config with metadata via `loadOxfmtConfig()`.
   - Merges supported `.editorconfig` fields.
   - Resolves ignore status via `isOxfmtIgnored()`.
 - Prefer focused changes that preserve public behavior unless the task explicitly requests a breaking change.
@@ -21,7 +21,7 @@ Guidance for AI coding agents working in this repository.
 ## Project Layout
 
 - `src/index.ts`: public export surface.
-- `src/core.ts`: `loadOxfmtConfigResult()` and cache orchestration.
+- `src/core.ts`: `loadOxfmtConfig()` and cache orchestration.
 - `src/config-file.ts`: config path resolution and file parsing.
 - `src/editorconfig.ts`: `.editorconfig` lookup + mapping + merge.
 - `src/ignore.ts`: `isOxfmtIgnored()` and ignore reasoning.
@@ -45,7 +45,7 @@ Guidance for AI coding agents working in this repository.
 - Prefer strict assertions (`toStrictEqual`) over snapshots.
 - Add/adjust tests when changing:
   - config discovery (`resolveOxfmtrcPath`)
-  - config loading/merging (`loadOxfmtConfigResult`)
+  - config loading/merging (`loadOxfmtConfig`)
   - ignore reasoning (`isOxfmtIgnored`, including `reason`)
 
 ## Behavior Guardrails

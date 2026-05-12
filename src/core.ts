@@ -38,13 +38,13 @@ export { resolveOxfmtrcPath } from './config-file'
  *
  * @example
  * ```ts
- * import { loadOxfmtConfigResult } from 'load-oxfmt-config'
+ * import { loadOxfmtConfig } from 'load-oxfmt-config'
  *
- * const result = await loadOxfmtConfigResult({ cwd: process.cwd() })
+ * const result = await loadOxfmtConfig({ cwd: process.cwd() })
  * console.log(result.config)
  * ```
  */
-export async function loadOxfmtConfigResult(
+export async function loadOxfmtConfig(
   options: LoadOxfmtConfigOptions = {},
 ): Promise<LoadOxfmtConfigResult> {
   const useCache = options.useCache !== false
