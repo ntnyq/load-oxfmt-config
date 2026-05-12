@@ -336,7 +336,7 @@ Option fields:
 - **Default:** `process.cwd()`
 
 Current working directory.
-Also the base directory for default `.gitignore`/`.prettierignore` lookup.
+Also the base directory for default `.prettierignore` lookup.
 
 #### `filepath`
 
@@ -358,7 +358,7 @@ When provided, nested config lookup is disabled (same as oxfmt CLI `-c`).
 - **Type:** `string | string[]`
 - **Default:** `undefined`
 
-Ignore files to use instead of cwd `.gitignore`/`.prettierignore`.
+Ignore files to use instead of default `.gitignore` hierarchy + cwd `.prettierignore`.
 Can be passed multiple times in CLI style.
 
 #### `withNodeModules`
@@ -404,6 +404,7 @@ When `false`, `isOxfmtIgnored()` only applies global ignore and skips config loa
   - `default-dir`
   - `lockfile`
   - `gitignore`
+  - `git-info-exclude`
   - `prettierignore`
   - `ignore-path`
   - `config-ignore-patterns`
@@ -495,7 +496,10 @@ Global ignore includes:
 - Default lockfiles: `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `bun.lockb`
 - Ignore files:
   - If `ignorePath` is provided: use those files only (multiple supported)
-  - If `ignorePath` is not provided: use `.gitignore` and `.prettierignore` from `cwd`
+  - If `ignorePath` is not provided:
+    - Read `.gitignore` from the file's directory upward until the git repo boundary
+    - Read `<repo>/.git/info/exclude` when inside a git repo
+    - Read `.prettierignore` from `cwd`
 
 Notes:
 
@@ -504,7 +508,6 @@ Notes:
 Type compatibility note:
 
 - `Options` is still exported as a deprecated alias of `LoadOxfmtConfigOptions`.
-- This package does not read parent `.gitignore` files or global gitignore settings.
 - The default lockfile list mirrors oxfmt documentation intent (`package-lock.json`, `pnpm-lock.yaml`, etc.) and common ecosystem lockfiles. It is not guaranteed to be a complete internal oxfmt list.
 - `ignorePatterns` are always interpreted relative to the resolved oxfmt config directory.
 - `includeConfigIgnorePatterns` defaults to `true` to preserve current behavior.

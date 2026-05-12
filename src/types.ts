@@ -105,7 +105,7 @@ export interface LoadOxfmtConfigResult {
 export interface IsOxfmtIgnoredOptions {
   /**
    * Current working directory.
-   * Also the base directory for default .gitignore/.prettierignore lookup.
+   * Also the base directory for default `.prettierignore` lookup.
    */
   cwd?: string
   /**
@@ -118,7 +118,7 @@ export interface IsOxfmtIgnoredOptions {
    */
   configPath?: string
   /**
-   * Ignore files to use instead of cwd .gitignore/.prettierignore.
+   * Ignore files to use instead of default `.gitignore` hierarchy + cwd `.prettierignore`.
    * Can be passed multiple times in CLI style.
    */
   ignorePath?: string | string[]
@@ -165,6 +165,7 @@ export interface IsOxfmtIgnoredResult {
     | 'default-dir'
     | 'lockfile'
     | 'gitignore'
+    | 'git-info-exclude'
     | 'prettierignore'
     | 'ignore-path'
     | 'config-ignore-patterns'

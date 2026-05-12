@@ -1,14 +1,17 @@
-import { readFile } from 'node:fs/promises'
-import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
+import { readFile, stat } from 'node:fs/promises'
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+} from 'node:path'
 import process from 'node:process'
 import ignore from 'ignore'
 import type { Ignore } from 'ignore'
 import picomatch from 'picomatch'
-import {
-  DEFAULT_IGNORE_FILES,
-  DEFAULT_IGNORED_DIRS,
-  DEFAULT_IGNORED_LOCKFILES,
-} from './constants'
+import { DEFAULT_IGNORED_DIRS, DEFAULT_IGNORED_LOCKFILES } from './constants'
 import { loadOxfmtConfigResult } from './core'
 import type { IsOxfmtIgnoredOptions, IsOxfmtIgnoredResult } from './types'
 import { cachePromise, splitPathSegments, toPosixPath } from './utils'
@@ -95,19 +98,24 @@ function relativeSafe(from: string, to: string) {
  * @param filepath - Absolute file path.
  * @param ignoreFilePath - Ignore file path.
  * @param useCache - Whether to use matcher cache.
+ * @param baseDir - Base directory for relative path calculation, defaults to ignore file directory.
  * @returns True when ignored by this file.
  */
 async function matchIgnoreFile(
   filepath: string,
   ignoreFilePath: string,
   useCache: boolean,
+  baseDir?: string,
 ) {
   const matcher = await loadIgnoreMatcher(ignoreFilePath, useCache)
   if (!matcher) {
     return false
   }
 
-  const relativeToIgnore = relativeSafe(dirname(ignoreFilePath), filepath)
+  const relativeToIgnore = relativeSafe(
+    baseDir ?? dirname(ignoreFilePath),
+    filepath,
+  )
   if (relativeToIgnore === '..' || relativeToIgnore.startsWith('../')) {
     return false
   }
@@ -124,6 +132,81 @@ async function matchIgnoreFile(
  */
 function resolveIgnoreFilePath(path: string, cwd: string) {
   return isAbsolute(path) ? path : resolve(cwd, path)
+}
+
+/**
+ * Check whether a directory looks like a git repo root.
+ *
+ * A `.git` entry can be either a directory (regular repo) or a file (worktree/submodule).
+ *
+ * @param dir - Directory to inspect.
+ * @returns True when `.git` exists under the directory.
+ */
+async function hasGitEntry(dir: string) {
+  try {
+    await stat(join(dir, '.git'))
+    return true
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      return false
+    }
+
+    throw error
+  }
+}
+
+/**
+ * Find the nearest git repo root by walking up from a start directory.
+ *
+ * @param fromDir - Directory to start from.
+ * @returns Repo root directory, or undefined when no git boundary is found.
+ */
+async function findGitRepoRoot(fromDir: string) {
+  let current = fromDir
+
+  while (true) {
+    if (await hasGitEntry(current)) {
+      return current
+    }
+
+    const parent = dirname(current)
+    if (parent === current) {
+      return undefined
+    }
+
+    current = parent
+  }
+}
+
+/**
+ * Collect `.gitignore` files from file directory up to git repo boundary.
+ *
+ * @param filepath - Absolute file path to test.
+ * @returns Collected ignore files and repo root when found.
+ */
+async function collectGitignorePaths(filepath: string) {
+  const fileDir = dirname(filepath)
+  const repoRoot = await findGitRepoRoot(fileDir)
+  const paths: string[] = []
+  let current = fileDir
+
+  while (true) {
+    paths.push(join(current, '.gitignore'))
+
+    if (repoRoot && current === repoRoot) {
+      break
+    }
+
+    const parent = dirname(current)
+    if (parent === current) {
+      break
+    }
+
+    current = parent
+  }
+
+  return { paths, repoRoot }
 }
 
 /**
@@ -218,14 +301,26 @@ export async function isOxfmtIgnored(
       }
     }
   } else {
-    for (const ignoreFile of DEFAULT_IGNORE_FILES) {
-      const ignorePath = resolve(cwd, ignoreFile)
+    const { paths: gitignorePaths, repoRoot } =
+      await collectGitignorePaths(filepath)
+    for (const ignorePath of gitignorePaths) {
       if (await matchIgnoreFile(filepath, ignorePath, useCache)) {
-        return {
-          ignored: true,
-          reason: ignoreFile === '.gitignore' ? 'gitignore' : 'prettierignore',
-        }
+        return { ignored: true, reason: 'gitignore' }
       }
+    }
+
+    if (repoRoot) {
+      const infoExcludePath = join(repoRoot, '.git', 'info', 'exclude')
+      if (
+        await matchIgnoreFile(filepath, infoExcludePath, useCache, repoRoot)
+      ) {
+        return { ignored: true, reason: 'git-info-exclude' }
+      }
+    }
+
+    const prettierignorePath = resolve(cwd, '.prettierignore')
+    if (await matchIgnoreFile(filepath, prettierignorePath, useCache)) {
+      return { ignored: true, reason: 'prettierignore' }
     }
   }
 

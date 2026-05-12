@@ -49,7 +49,7 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
-  it('uses cwd .gitignore/.prettierignore when ignorePath is not provided', async () => {
+  it('uses nearest-parent .gitignore chain and cwd .prettierignore when ignorePath is not provided', async () => {
     await withTempDir('oxfmt-ignore-default-files-', async cwd => {
       const gitignoredFile = join(cwd, 'dist', 'a.js')
       const prettierIgnoredFile = join(cwd, 'snapshots', 'a.snap')
@@ -165,6 +165,106 @@ describe(isOxfmtIgnored, () => {
         reason: 'ignore-path',
       })
     })
+  })
+
+  it('reads parent .gitignore from nested package directories up to repo boundary', async () => {
+    await withTempDir('oxfmt-ignore-parent-gitignore-', async cwd => {
+      const repoRoot = join(cwd, 'repo')
+      const nestedDir = join(repoRoot, 'packages', 'app', 'src')
+      const filepath = join(nestedDir, 'a.ts')
+
+      await mkdir(join(repoRoot, '.git'), { recursive: true })
+      await mkdir(nestedDir, { recursive: true })
+      await writeFile(
+        join(repoRoot, '.gitignore'),
+        'packages/**/src/**\n',
+        'utf8',
+      )
+      await writeFile(filepath, 'export const a = 1\n', 'utf8')
+
+      const result = await isOxfmtIgnored({
+        cwd: nestedDir,
+        filepath,
+      })
+
+      expect(result).toStrictEqual({ ignored: true, reason: 'gitignore' })
+    })
+  })
+
+  it('reads .git/info/exclude from repo root', async () => {
+    await withTempDir('oxfmt-ignore-git-info-exclude-', async cwd => {
+      const repoRoot = join(cwd, 'repo')
+      const filepath = join(repoRoot, 'src', 'excluded.ts')
+
+      await mkdir(join(repoRoot, '.git', 'info'), { recursive: true })
+      await mkdir(join(repoRoot, 'src'), { recursive: true })
+      await writeFile(
+        join(repoRoot, '.git', 'info', 'exclude'),
+        'src/excluded.ts\n',
+        'utf8',
+      )
+      await writeFile(filepath, 'export const excluded = true\n', 'utf8')
+
+      const result = await isOxfmtIgnored({
+        cwd: repoRoot,
+        filepath,
+      })
+
+      expect(result).toStrictEqual({
+        ignored: true,
+        reason: 'git-info-exclude',
+      })
+    })
+  })
+
+  it('stops default .gitignore lookup at repo boundary', async () => {
+    await withTempDir('oxfmt-ignore-repo-boundary-', async cwd => {
+      const outsideIgnore = join(cwd, '.gitignore')
+      const repoRoot = join(cwd, 'repo')
+      const filepath = join(repoRoot, 'src', 'a.ts')
+
+      await mkdir(join(repoRoot, '.git'), { recursive: true })
+      await mkdir(join(repoRoot, 'src'), { recursive: true })
+      await writeFile(outsideIgnore, 'repo/src/**\n', 'utf8')
+      await writeFile(filepath, 'export const a = 1\n', 'utf8')
+
+      const result = await isOxfmtIgnored({
+        cwd: repoRoot,
+        filepath,
+      })
+
+      expect(result).toStrictEqual({ ignored: false })
+    })
+  })
+
+  it('uses ignorePath and skips default gitignore chain, prettierignore and git info exclude', async () => {
+    await withTempDir(
+      'oxfmt-ignore-ignore-path-overrides-default-',
+      async cwd => {
+        const repoRoot = join(cwd, 'repo')
+        const filepath = join(repoRoot, 'src', 'a.ts')
+
+        await mkdir(join(repoRoot, '.git', 'info'), { recursive: true })
+        await mkdir(join(repoRoot, 'src'), { recursive: true })
+        await writeFile(join(repoRoot, '.gitignore'), 'src/**\n', 'utf8')
+        await writeFile(
+          join(repoRoot, '.git', 'info', 'exclude'),
+          'src/a.ts\n',
+          'utf8',
+        )
+        await writeFile(join(repoRoot, '.prettierignore'), 'src/**\n', 'utf8')
+        await writeFile(join(repoRoot, '.customignore'), 'dist/**\n', 'utf8')
+        await writeFile(filepath, 'export const a = 1\n', 'utf8')
+
+        const result = await isOxfmtIgnored({
+          cwd: repoRoot,
+          filepath,
+          ignorePath: '.customignore',
+        })
+
+        expect(result).toStrictEqual({ ignored: false })
+      },
+    )
   })
 
   it('applies config ignorePatterns from nearest config by default', async () => {
