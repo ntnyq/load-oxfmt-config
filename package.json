@@ -1,7 +1,7 @@
 {
   "name": "load-oxfmt-config",
   "version": "0.8.0",
-  "description": "Load oxfmt config files and merge supported .editorconfig options.",
+  "description": "Load and resolve oxfmt configuration files, including explicit JS/TS config paths, and merge supported `.editorconfig` settings for Oxfmt.",
   "keywords": [
     "editorconfig",
     "jsonc-parser",

@@ -5,12 +5,12 @@
 [![NPM DOWNLOADS](https://img.shields.io/npm/dy/load-oxfmt-config.svg)](https://www.npmjs.com/package/load-oxfmt-config)
 [![LICENSE](https://img.shields.io/github/license/ntnyq/load-oxfmt-config.svg)](https://github.com/ntnyq/load-oxfmt-config/blob/main/LICENSE)
 
-> Load and resolve oxfmt configuration files and merge supported `.editorconfig` settings for [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html).
+> Load and resolve oxfmt configuration files, including explicit JS/TS config paths, and merge supported `.editorconfig` settings for [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html).
 
 ## Features
 
 - 🔍 **Auto-discovery** - Automatically searches for config files in current and parent directories
-- 📦 **Multiple formats** - Supports `.oxfmtrc.json`, `.oxfmtrc.jsonc`, and `oxfmt.config.ts`
+- 📦 **Multiple formats** - Auto-discovers `.oxfmtrc.json`, `.oxfmtrc.jsonc`, and `oxfmt.config.ts`, and also supports explicit `.js` / `.mjs` / `.cjs` / `.mts` / `.cts` config paths
 - 🧩 **EditorConfig fallback** - Merges supported `.editorconfig` fields into the returned oxfmt config result
 - 🚫 **Ignore resolution** - Resolves ignore status with oxfmt CLI-like global + config-scoped semantics
 - ⚡ **Built-in caching** - Caches both file resolution and parsed configs for optimal performance
@@ -30,6 +30,8 @@ yarn add load-oxfmt-config
 ```shell
 pnpm add load-oxfmt-config
 ```
+
+> `oxfmt` is a peer dependency and should be installed alongside this package.
 
 ## Usage
 
@@ -468,7 +470,7 @@ try {
   const result = await loadOxfmtConfig()
   console.log(result.config)
 } catch (error) {
-  // Thrown when config file exists but contains invalid JSON/JSONC
+  // Thrown when a resolved config file cannot be parsed or loaded
   console.error('Failed to parse oxfmt config:', error.message)
 }
 ```
