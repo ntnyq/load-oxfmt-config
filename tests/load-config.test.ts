@@ -1,10 +1,17 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { loadOxfmtConfig } from '../src'
+import { loadOxfmtConfigResult } from '../src'
 import { fixturePath, withTempDir } from './helpers'
 
-describe(loadOxfmtConfig, () => {
+async function loadOxfmtConfig(
+  ...args: Parameters<typeof loadOxfmtConfigResult>
+) {
+  const result = await loadOxfmtConfigResult(...args)
+  return result.config
+}
+
+describe(loadOxfmtConfigResult, () => {
   it('returns empty object when config is missing', async () => {
     const cwd = fixturePath('load', 'missing')
 

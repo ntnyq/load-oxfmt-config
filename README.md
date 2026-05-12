@@ -162,15 +162,6 @@ const result = await loadOxfmtConfigResult({
 })
 ```
 
-### Legacy API (Deprecated)
-
-```ts
-import { loadOxfmtConfig } from 'load-oxfmt-config'
-
-// Deprecated: prefer loadOxfmtConfigResult
-const config = await loadOxfmtConfig({ cwd: '/path/to/project' })
-```
-
 ### Path Resolution Only
 
 ```ts
@@ -182,67 +173,6 @@ console.log(configPath) // '/path/to/.oxfmtrc.json' or undefined
 ```
 
 ## API
-
-### `loadOxfmtConfig(options?)`
-
-> Deprecated. Prefer `loadOxfmtConfigResult(options?)`.
-
-Load and parse oxfmt configuration files, then merge supported `.editorconfig` fields into the returned result.
-
-**Parameters:**
-
-- `options` - Optional configuration object (`LoadOxfmtConfigOptions`)
-
-Option fields:
-
-#### `cwd`
-
-- **Type:** `string`
-- **Default:** `process.cwd()`
-
-Current working directory to start searching for config files. The loader will walk up from this directory to find a config file.
-
-#### `configPath`
-
-- **Type:** `string`
-- **Default:** `undefined`
-
-Explicit path to the config file:
-
-- **Relative path:** Resolved relative to `cwd`
-- **Absolute path:** Used as-is
-- **When provided:** Skips auto-discovery and uses this path directly
-
-#### `useCache`
-
-- **Type:** `boolean`
-- **Default:** `true`
-
-Enable in-memory caching for both path resolution and parsed config contents. When enabled:
-
-- Config file paths are cached to avoid repeated filesystem lookups
-- Parsed config objects are cached to avoid re-parsing
-- Subsequent calls with the same parameters return cached results instantly
-
-Set to `false` to force reload from disk on every call.
-
-#### `editorconfig`
-
-- **Type:** `boolean | EditorconfigOption`
-- **Default:** `true`
-
-Control how `.editorconfig` files are read and merged:
-
-- **`true`** — Read and merge the nearest `.editorconfig`, walking up from the config file's directory (or `cwd` when no config path is given).
-- **`false`** — Disable `.editorconfig` reading entirely.
-- **`EditorconfigOption`** — Enable with additional settings:
-
-| Property  | Type      | Default     | Description                                                                                                           |
-| --------- | --------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
-| `onlyCwd` | `boolean` | `false`     | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal.                                     |
-| `cwd`     | `string`  | `undefined` | Override the directory from which `.editorconfig` resolution starts, instead of the config file's directory or `cwd`. |
-
-**Returns:** `Promise<OxfmtOptions>` - Parsed and merged oxfmt configuration object. Returns empty object `{}` if no supported config file is found.
 
 ### `loadOxfmtConfigResult(options?)`
 
@@ -505,9 +435,6 @@ Notes:
 
 - `node_modules` can be included by passing `withNodeModules: true`.
 
-Type compatibility note:
-
-- `Options` is still exported as a deprecated alias of `LoadOxfmtConfigOptions`.
 - The default lockfile list mirrors oxfmt documentation intent (`package-lock.json`, `pnpm-lock.yaml`, etc.) and common ecosystem lockfiles. It is not guaranteed to be a complete internal oxfmt list.
 - `ignorePatterns` are always interpreted relative to the resolved oxfmt config directory.
 - `includeConfigIgnorePatterns` defaults to `true` to preserve current behavior.
@@ -530,7 +457,7 @@ This means explicit oxfmt config values always win over `.editorconfig` fallback
 
 ## Limitations
 
-`loadOxfmtConfigResult()` (and the deprecated `loadOxfmtConfig()`) returns a static merged `OxfmtOptions` shape. That means `.editorconfig` support is represented as merged root + overrides config data, not as per-file runtime evaluation. In practice this works well for common root settings and section-based overrides, but it is not a full replacement for oxfmt's own file-by-file config resolution.
+`loadOxfmtConfigResult()` returns a static merged `OxfmtOptions` shape. That means `.editorconfig` support is represented as merged root + overrides config data, not as per-file runtime evaluation. In practice this works well for common root settings and section-based overrides, but it is not a full replacement for oxfmt's own file-by-file config resolution.
 
 ## Error Handling
 

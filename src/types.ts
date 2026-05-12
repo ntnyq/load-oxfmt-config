@@ -170,13 +170,3 @@ export interface IsOxfmtIgnoredResult {
     | 'ignore-path'
     | 'config-ignore-patterns'
 }
-
-/**
- * @deprecated Use `OxfmtConfigOverride` instead
- */
-export type FormatOptionOverride = OxfmtConfigOverride
-
-/**
- * @deprecated Use `LoadOxfmtConfigOptions` instead.
- */
-export type Options = LoadOxfmtConfigOptions
