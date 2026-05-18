@@ -191,7 +191,16 @@ Option fields:
 - **Type:** `string`
 - **Default:** `process.cwd()`
 
-Current working directory to start searching for config files. The loader will walk up from this directory to find a config file.
+Current working directory for config resolution.
+By default config discovery starts here, unless `filepath` is provided.
+
+#### `filepath`
+
+- **Type:** `string`
+- **Default:** `undefined`
+
+Target file path for nested config resolution.
+When provided (and `configPath` is not set), config discovery starts from `dirname(filepath)` and walks upward to match oxfmt per-file semantics.
 
 #### `configPath`
 
@@ -203,6 +212,14 @@ Explicit path to the config file:
 - **Relative path:** Resolved relative to `cwd`
 - **Absolute path:** Used as-is
 - **When provided:** Skips auto-discovery and uses this path directly
+
+#### `disableNestedConfig`
+
+- **Type:** `boolean`
+- **Default:** `false`
+
+Disable nested config lookup.
+When `true`, config discovery is anchored to `cwd` (or explicit `configPath`) instead of `filepath`.
 
 #### `useCache`
 
@@ -345,7 +362,7 @@ When `false`, `isOxfmtIgnored()` only applies global ignore and skips config loa
 
 When `configPath` is not provided, the loader automatically searches for config files:
 
-1. **Search order:** Starts from `cwd` and walks up to parent directories
+1. **Search order:** Starts from `dirname(filepath)` when `filepath` is provided, otherwise `cwd`, then walks up to parent directories
 2. **Supported filenames:**
    - `.oxfmtrc.json`
    - `.oxfmtrc.jsonc`
@@ -353,7 +370,7 @@ When `configPath` is not provided, the loader automatically searches for config 
 3. **Stops when:**
    - A valid config file is found
    - Reaches the filesystem root
-4. **EditorConfig:** The nearest `.editorconfig` is also resolved and merged into the returned result
+4. **EditorConfig:** The nearest `.editorconfig` is resolved from the same start directory and merged into the returned result
 5. **Returns:** Empty object `{}` if no config file is found
 
 ## Supported Config Formats
@@ -445,6 +462,7 @@ Notes:
   - default: nearest config from target file directory upward
   - `disableNestedConfig: true`: resolve from `cwd` only
   - `configPath`: also disables nested lookup (same intent as CLI `-c`)
+  - invalid nested config only fails files that resolve to that config (no project-wide pre-scan)
 
 ## Precedence
 
@@ -485,6 +503,7 @@ The caching system maintains two separate caches:
 **Cache keys are based on:**
 
 - `cwd` + `configPath` for path resolution
+- or `dirname(filepath)` + `configPath` when `filepath` is provided and nested lookup is enabled
 - Resolved oxfmt path and resolved `.editorconfig` path for config content
 
 **Cache invalidation:**
