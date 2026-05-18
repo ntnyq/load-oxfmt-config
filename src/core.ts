@@ -49,6 +49,11 @@ export async function loadOxfmtConfig(
 ): Promise<LoadOxfmtConfigResult> {
   const useCache = options.useCache !== false
   const cwd = resolve(options.cwd || process.cwd())
+  const filepath = options.filepath ? resolve(cwd, options.filepath) : undefined
+
+  const nestedConfigDisabled = options.configPath || options.disableNestedConfig
+  const configLookupCwd =
+    nestedConfigDisabled || !filepath ? cwd : dirname(filepath)
   const editorconfig = options.editorconfig ?? true
   const useEditorconfig = editorconfig !== false
   const isEditorconfigOptionsObject = useEditorconfig && isObject(editorconfig)
@@ -62,9 +67,10 @@ export async function loadOxfmtConfig(
       ? resolve(editorconfig.cwd)
       : undefined
 
-  const resolveKey = getResolveCacheKey(cwd, options.configPath)
+  const resolveKey = getResolveCacheKey(configLookupCwd, options.configPath)
   const editorconfigSearchDir =
-    editorconfigCwd || getEditorconfigSearchDir(cwd, options.configPath)
+    editorconfigCwd ||
+    getEditorconfigSearchDir(configLookupCwd, options.configPath)
   const editorconfigResolveKey = editorconfigCwd
     ? getEditorconfigResolveCacheKey(
         `${editorconfigCwd}::${options.configPath || ''}`,
@@ -73,9 +79,9 @@ export async function loadOxfmtConfig(
 
   const resolvedPath = useCache
     ? await cachePromise(resolveCache, resolveKey, () =>
-        resolveOxfmtrcPath(cwd, options.configPath),
+        resolveOxfmtrcPath(configLookupCwd, options.configPath),
       )
-    : await resolveOxfmtrcPath(cwd, options.configPath)
+    : await resolveOxfmtrcPath(configLookupCwd, options.configPath)
 
   const editorconfigPath = useEditorconfig
     ? await (useCache

@@ -329,10 +329,11 @@ export async function isOxfmtIgnored(
   }
 
   const configResult = await loadOxfmtConfig({
-    cwd:
-      options.configPath || options.disableNestedConfig
-        ? cwd
-        : dirname(filepath),
+    cwd,
+    filepath,
+    ...(options.disableNestedConfig === true
+      ? { disableNestedConfig: true }
+      : {}),
     ...(options.configPath ? { configPath: options.configPath } : {}),
     editorconfig: false,
     useCache,

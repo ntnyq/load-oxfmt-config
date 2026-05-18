@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadOxfmtConfig } from '../src'
@@ -118,6 +118,59 @@ describe(loadOxfmtConfig, () => {
       const result = await loadOxfmtConfig({ cwd, useCache: false })
 
       expect(result.config.tabWidth).toBe(2)
+    })
+
+    it('resolves nested config from filepath directory by default', async () => {
+      await withTempDir('oxfmt-config-by-filepath-', async cwd => {
+        const nestedDir = join(cwd, 'packages', 'app', 'src')
+        await mkdir(nestedDir, { recursive: true })
+        await writeFile(
+          join(cwd, '.oxfmtrc.json'),
+          JSON.stringify({ printWidth: 120 }),
+          'utf8',
+        )
+        await writeFile(
+          join(cwd, 'packages', 'app', '.oxfmtrc.json'),
+          JSON.stringify({ printWidth: 90 }),
+          'utf8',
+        )
+        await writeFile(join(nestedDir, 'a.ts'), 'export const a = 1\n', 'utf8')
+
+        const result = await loadOxfmtConfig({
+          cwd,
+          filepath: join(nestedDir, 'a.ts'),
+          useCache: false,
+        })
+
+        expect(result.config.printWidth).toBe(90)
+      })
+    })
+
+    it('uses cwd-based config when disableNestedConfig is true', async () => {
+      await withTempDir('oxfmt-config-disable-nested-', async cwd => {
+        const nestedDir = join(cwd, 'packages', 'app', 'src')
+        await mkdir(nestedDir, { recursive: true })
+        await writeFile(
+          join(cwd, '.oxfmtrc.json'),
+          JSON.stringify({ printWidth: 120 }),
+          'utf8',
+        )
+        await writeFile(
+          join(cwd, 'packages', 'app', '.oxfmtrc.json'),
+          JSON.stringify({ printWidth: 90 }),
+          'utf8',
+        )
+        await writeFile(join(nestedDir, 'a.ts'), 'export const a = 1\n', 'utf8')
+
+        const result = await loadOxfmtConfig({
+          cwd,
+          filepath: join(nestedDir, 'a.ts'),
+          disableNestedConfig: true,
+          useCache: false,
+        })
+
+        expect(result.config.printWidth).toBe(120)
+      })
     })
   })
 

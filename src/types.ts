@@ -51,6 +51,19 @@ export interface LoadOxfmtConfigOptions {
    */
   cwd?: string
   /**
+   * File path being formatted. When provided (and `configPath` is not set),
+   * config discovery starts from this file's directory to match oxfmt nested
+   * config behavior.
+   */
+  filepath?: string
+  /**
+   * Disable nested config lookup.
+   * When true, config discovery is anchored to `cwd` (or explicit `configPath`).
+   *
+   * @default false
+   */
+  disableNestedConfig?: boolean
+  /**
    * Whether to use cache
    */
   useCache?: boolean

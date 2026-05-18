@@ -486,6 +486,38 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
+  it('only throws invalid nested config errors when the current file resolves to that config', async () => {
+    await withTempDir('oxfmt-ignore-lazy-invalid-nested-', async cwd => {
+      const appDir = join(cwd, 'packages', 'app')
+      const brokenDir = join(cwd, 'packages', 'broken')
+      const appFile = join(appDir, 'src', 'a.ts')
+      const brokenFile = join(brokenDir, 'src', 'b.ts')
+
+      await mkdir(join(appDir, 'src'), { recursive: true })
+      await mkdir(join(brokenDir, 'src'), { recursive: true })
+      await writeFile(appFile, 'export const a = 1\n', 'utf8')
+      await writeFile(brokenFile, 'export const b = 1\n', 'utf8')
+
+      await writeFile(join(cwd, '.oxfmtrc.json'), '{}\n', 'utf8')
+      await writeFile(join(appDir, '.oxfmtrc.json'), '{}\n', 'utf8')
+      await writeFile(join(brokenDir, '.oxfmtrc.json'), '{\n', 'utf8')
+
+      await expect(
+        isOxfmtIgnored({
+          cwd,
+          filepath: appFile,
+        }),
+      ).resolves.toStrictEqual({ ignored: false })
+
+      await expect(
+        isOxfmtIgnored({
+          cwd,
+          filepath: brokenFile,
+        }),
+      ).rejects.toThrow(/Failed to parse oxfmt configuration file/u)
+    })
+  })
+
   it('disables nested lookup when explicit configPath is provided', async () => {
     await withTempDir('oxfmt-ignore-explicit-config-', async cwd => {
       const nestedDir = join(cwd, 'packages', 'app')
