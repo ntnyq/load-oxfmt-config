@@ -241,7 +241,9 @@ Set to `false` to force reload from disk on every call.
 
 Control how `.editorconfig` files are read and merged:
 
-- **`true`** — Read and merge the nearest `.editorconfig`, walking up from the config file's directory (or `cwd` when no config path is given).
+- **`true`** — Read and merge the nearest `.editorconfig`, walking up from the config-discovery start directory:
+  - `dirname(filepath)` when nested lookup is enabled and `filepath` is provided
+  - otherwise `cwd`
 - **`false`** — Disable `.editorconfig` reading entirely.
 - **`EditorconfigOption`** — Enable with additional settings:
 
@@ -362,7 +364,7 @@ When `false`, `isOxfmtIgnored()` only applies global ignore and skips config loa
 
 When `configPath` is not provided, the loader automatically searches for config files:
 
-1. **Search order:** Starts from `dirname(filepath)` when `filepath` is provided, otherwise `cwd`, then walks up to parent directories
+1. **Search order:** Starts from `dirname(filepath)` when `filepath` is provided **and nested lookup is enabled**; otherwise starts from `cwd`, then walks up to parent directories
 2. **Supported filenames:**
    - `.oxfmtrc.json`
    - `.oxfmtrc.jsonc`
