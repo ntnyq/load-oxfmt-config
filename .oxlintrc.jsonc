@@ -55,6 +55,7 @@
     "unicorn/prefer-at": "off",
     "unicorn/prefer-spread": "off",
     "unicorn/prefer-ternary": "off",
+    "unicorn/import-style": "off",
     "unicorn/prefer-global-this": "off",
     "unicorn/relative-url-style": "off",
     "unicorn/switch-case-braces": "off",
