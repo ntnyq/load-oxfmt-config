@@ -25,17 +25,30 @@ If the user does not specify a target, choose the latest stable `oxfmt` and stat
 ## Workflow Checklist
 
 1. Inspect current versions in `package.json`.
-2. Update `devDependencies.oxfmt` to the requested target.
-3. Keep `peerDependencies.oxfmt` aligned with minimum supported version.
-4. Install/update lockfile with `pnpm install` (or `pnpm up -D oxfmt@<target>`).
-5. Run validation commands:
+2. Review upstream changelog entries from current to target version.
+
+- Primary source: `https://github.com/oxc-project/oxc/releases` (apps tags for oxfmt).
+- Also review formatter changelog: `crates/oxc_formatter/CHANGELOG.md`.
+
+3. Compare upstream implementation changes for touched behavior areas before coding.
+
+- Check oxfmt/formatter source directories and confirm whether config schema, file detection, or ignore-related behavior changed.
+
+4. Update `devDependencies.oxfmt` to the requested target while preserving semver range style.
+
+- Default: keep caret range (`^x.y.z`) in `dependencies`/`devDependencies`.
+- Only pin exact versions when the user explicitly asks for pinning.
+
+5. Keep `peerDependencies.oxfmt` aligned with minimum supported version.
+6. Install/update lockfile with `pnpm install` (or `pnpm up -D oxfmt@<target>`).
+7. Run validation commands:
    - `pnpm run format:check`
    - `pnpm run lint`
    - `pnpm run typecheck`
    - `pnpm test`
    - `pnpm run build`
-6. If behavior changed, update tests and docs that encode old oxfmt behavior.
-7. Summarize results with changed files, test outcomes, and any follow-up risk.
+8. If behavior changed, update tests and docs that encode old oxfmt behavior.
+9. Summarize results with changed files, test outcomes, changelog/source findings, and any follow-up risk.
 
 ## Compatibility Checks
 
@@ -58,10 +71,12 @@ If the user does not specify a target, choose the latest stable `oxfmt` and stat
 ## Suggested Command Sequence
 
 ```bash
-pnpm up -D oxfmt@<target>
+pnpm up -D oxfmt@^<target>
 pnpm run release:check
 pnpm run build
 ```
+
+If the user requested an exact version pin, use `pnpm up -D oxfmt@<target>` and keep that exact specifier.
 
 If any check fails, fix only the breakages directly caused by the version bump.
 
@@ -80,5 +95,6 @@ Use this structure when reporting completion:
   - typecheck: <pass/fail>
   - test: <pass/fail>
   - build: <pass/fail>
+- Changelog/source review: <key upstream changes and whether repository behavior is aligned>
 - Notes: <breaking changes, if any>
 ```
