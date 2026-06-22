@@ -43,11 +43,6 @@ export const DEFAULT_IGNORED_LOCKFILES = [
 ]
 
 /**
- * Default ignore files loaded from cwd when --ignore-path is not provided.
- */
-export const DEFAULT_IGNORE_FILES = ['.gitignore', '.prettierignore']
-
-/**
  * Supported EditorConfig filename.
  */
 export const EDITORCONFIG_FILE = '.editorconfig'

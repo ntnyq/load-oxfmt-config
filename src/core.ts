@@ -73,9 +73,11 @@ export async function loadOxfmtConfig(
     getEditorconfigSearchDir(configLookupCwd, options.configPath)
   const editorconfigResolveKey = editorconfigCwd
     ? getEditorconfigResolveCacheKey(
-        `${editorconfigCwd}::${options.configPath || ''}`,
+        `${editorconfigCwd}::${options.configPath || ''}::onlyCwd=${String(onlyCwd)}`,
       )
-    : getEditorconfigResolveCacheKey(resolveKey)
+    : getEditorconfigResolveCacheKey(
+        `${resolveKey}::onlyCwd=${String(onlyCwd)}`,
+      )
 
   const resolvedPath = useCache
     ? await cachePromise(resolveCache, resolveKey, () =>

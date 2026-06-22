@@ -225,6 +225,56 @@ describe(loadOxfmtConfig, () => {
       expect(fresh).not.toBe(first)
       expect(fresh.config.tabWidth).toBe(2)
     })
+
+    it('keeps editorconfig onlyCwd cache isolated from default walking', async () => {
+      await withTempDir('oxfmt-config-editor-cache-only-cwd-', async cwd => {
+        const child = join(cwd, 'packages', 'app')
+        await mkdir(child, { recursive: true })
+        await writeFile(
+          join(cwd, '.editorconfig'),
+          '[*]\nindent_style = space\nindent_size = 2\n',
+          'utf8',
+        )
+        await writeFile(join(child, '.oxfmtrc.json'), '{}\n', 'utf8')
+
+        const withWalk = await loadOxfmtConfig({ cwd: child })
+        const onlyCwd = await loadOxfmtConfig({
+          cwd: child,
+          editorconfig: { onlyCwd: true },
+        })
+
+        expect(withWalk.config).toStrictEqual({ tabWidth: 2, useTabs: false })
+        expect(onlyCwd.config).toStrictEqual({})
+      })
+    })
+
+    it('keeps default editorconfig cache isolated after onlyCwd miss', async () => {
+      await withTempDir(
+        'oxfmt-config-editor-cache-only-cwd-miss-',
+        async cwd => {
+          const child = join(cwd, 'packages', 'app')
+          await mkdir(child, { recursive: true })
+          await writeFile(
+            join(cwd, '.editorconfig'),
+            '[*]\nindent_style = space\nindent_size = 2\n',
+            'utf8',
+          )
+          await writeFile(join(child, '.oxfmtrc.json'), '{}\n', 'utf8')
+
+          const onlyCwd = await loadOxfmtConfig({
+            cwd: child,
+            editorconfig: { onlyCwd: true },
+          })
+          const withWalk = await loadOxfmtConfig({ cwd: child })
+
+          expect(onlyCwd.config).toStrictEqual({})
+          expect(withWalk.config).toStrictEqual({
+            tabWidth: 2,
+            useTabs: false,
+          })
+        },
+      )
+    })
   })
 
   describe('ignorePatterns handling', () => {

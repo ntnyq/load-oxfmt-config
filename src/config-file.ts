@@ -78,7 +78,12 @@ export async function resolveOxfmtrcPath(
         if (stats.isFile()) {
           return configFilePath
         }
-      } catch {
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code
+        if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+          throw error
+        }
+
         // File does not exist, continue searching.
       }
     }
