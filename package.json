@@ -1,6 +1,6 @@
 {
   "name": "load-oxfmt-config",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "description": "Load and resolve oxfmt configuration files, including explicit JS/TS config paths, and merge supported `.editorconfig` settings for Oxfmt.",
   "keywords": [
     "editorconfig",
