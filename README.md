@@ -417,6 +417,7 @@ export default {
 
 > JavaScript and TypeScript config files are executed while loading config. Only load them from repositories you trust.
 
+JavaScript and TypeScript config files must provide a default export whose value is an object.
 When `configPath` is passed explicitly, extensions `.json`, `.jsonc`, `.ts`, `.mts`, `.cts`, `.js`, `.mjs`, and `.cjs` are supported. Extensionless paths are also accepted and parsed as JSON.
 
 ## `.editorconfig` Support

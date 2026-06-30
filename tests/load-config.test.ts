@@ -556,7 +556,7 @@ describe(loadOxfmtConfig, () => {
       ['.cjs', 'module.exports = { printWidth: 93 }\n', 93],
       ['.ts', 'export default { printWidth: 94 }\n', 94],
       ['.mts', 'export default { printWidth: 95 }\n', 95],
-      ['.cts', 'module.exports = { printWidth: 96 }\n', 96],
+      ['.cts', 'export default { printWidth: 96 }\n', 96],
     ])(
       'loads explicit %s config path and returns metadata',
       async (extension, content, expectedPrintWidth) => {
@@ -577,6 +577,40 @@ describe(loadOxfmtConfig, () => {
         })
       },
     )
+
+    it('throws when explicit JS config has no default export', async () => {
+      await withTempDir('oxfmt-config-explicit-js-no-default-', async cwd => {
+        const configPath = join(cwd, 'custom.config.mjs')
+        await writeFile(configPath, 'export const printWidth = 97\n', 'utf8')
+
+        await expect(
+          loadOxfmtConfig({
+            cwd,
+            configPath,
+            useCache: false,
+            editorconfig: false,
+          }),
+        ).rejects.toThrow(/Configuration file has no default export/u)
+      })
+    })
+
+    it('throws when explicit JS config default export is not an object', async () => {
+      await withTempDir('oxfmt-config-explicit-js-non-object-', async cwd => {
+        const configPath = join(cwd, 'custom.config.mjs')
+        await writeFile(configPath, 'export default ["printWidth"]\n', 'utf8')
+
+        await expect(
+          loadOxfmtConfig({
+            cwd,
+            configPath,
+            useCache: false,
+            editorconfig: false,
+          }),
+        ).rejects.toThrow(
+          /Configuration file must have a default export that is an object/u,
+        )
+      })
+    })
 
     it('loads explicit .json and .jsonc config path with custom filename', async () => {
       await withTempDir('oxfmt-config-explicit-json-', async cwd => {

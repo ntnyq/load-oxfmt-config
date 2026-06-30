@@ -42,6 +42,7 @@
     "import/no-relative-parent-imports": "off",
     "jsdoc/require-param-type": "off",
     "jsdoc/require-returns-type": "off",
+    "jsdoc/require-throws-type": "off",
     "promise/prefer-await-to-then": "off",
     "promise/prefer-await-to-callbacks": "off",
     "unicorn/explicit-length-check": "off",

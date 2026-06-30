@@ -9,6 +9,33 @@ import {
 } from './constants'
 import type { OxfmtOptions } from './types'
 
+function isConfigObject(value: unknown): value is OxfmtOptions {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Read the default export from a JavaScript or TypeScript config module.
+ *
+ * @param mod - Imported config module namespace.
+ * @returns Oxfmt config object from the module default export.
+ * @throws When the module has no default export or the default export is not an object.
+ */
+function readConfigDefaultExport(mod: Record<string, unknown>): OxfmtOptions {
+  if (!Object.hasOwn(mod, 'default')) {
+    throw new Error('Configuration file has no default export.')
+  }
+
+  const config = mod['default']
+
+  if (!isConfigObject(config)) {
+    throw new Error(
+      'Configuration file must have a default export that is an object.',
+    )
+  }
+
+  return config
+}
+
 /**
  * Build a cache key for path resolution (cwd + configPath).
  *
@@ -121,8 +148,7 @@ export async function readConfigFromFile(
     const createJiti = await interopDefault(import('jiti'))
     const jiti = createJiti(import.meta.url)
     const mod = await jiti.import<Record<string, unknown>>(resolvedPath)
-    const config = mod['default'] ?? mod
-    return config as OxfmtOptions
+    return readConfigDefaultExport(mod)
   }
 
   const content = await readFile(resolvedPath, 'utf8')
