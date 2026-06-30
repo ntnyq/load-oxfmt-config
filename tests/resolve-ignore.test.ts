@@ -338,6 +338,26 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
+  it('applies config ignorePatterns with gitignore directory semantics', async () => {
+    await withTempDir('oxfmt-ignore-config-gitignore-dir-', async cwd => {
+      const filepath = join(cwd, 'dist', 'a.ts')
+      await mkdir(join(cwd, 'dist'), { recursive: true })
+      await writeFile(filepath, 'export const a = 1\n', 'utf8')
+      await writeFile(
+        join(cwd, '.oxfmtrc.json'),
+        JSON.stringify({ ignorePatterns: ['dist'] }),
+        'utf8',
+      )
+
+      const result = await isOxfmtIgnored({ cwd, filepath })
+
+      expect(result).toStrictEqual({
+        ignored: true,
+        reason: 'config-ignore-patterns',
+      })
+    })
+  })
+
   it('can disable config ignorePatterns via includeConfigIgnorePatterns=false', async () => {
     await withTempDir('oxfmt-ignore-config-toggle-', async cwd => {
       const filepath = join(cwd, 'generated', 'a.ts')

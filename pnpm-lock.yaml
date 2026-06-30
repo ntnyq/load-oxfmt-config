@@ -23,9 +23,6 @@ importers:
       jsonc-parser:
         specifier: ^3.3.1
         version: 3.3.1
-      picomatch:
-        specifier: ^4.0.4
-        version: 4.0.4
     devDependencies:
       '@ntnyq/tsconfig':
         specifier: ^3.1.0
@@ -33,9 +30,6 @@ importers:
       '@types/node':
         specifier: ^26.0.0
         version: 26.0.0
-      '@types/picomatch':
-        specifier: ^4.0.3
-        version: 4.0.3
       '@typescript/native-preview':
         specifier: ^7.0.0-dev.20260622.1
         version: 7.0.0-dev.20260622.1
@@ -600,9 +594,6 @@ packages:
 
   '@types/node@26.0.0':
     resolution: {integrity: sha512-vf2YFi1iY9lHGwNJMs01biZFbKJkrZR1T6/MlzjhJLPdntOHLhTrDSnSVcdtvjihi4VQNlrFRIxLsDBlQpAipA==}
-
-  '@types/picomatch@4.0.3':
-    resolution: {integrity: sha512-iG0T6+nYJ9FAPmx9SsUlnwcq1ZVRuCXcVEvWnntoPlrOpwtSTKNDC9uVAxTsC3PUvJ+99n4RpAcNgBbHX3JSnQ==}
 
   '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260622.1':
     resolution: {integrity: sha512-g/fjmdh/i/ngSmUeWNHh98iuONzW+kUaqwZRaZCmGkssBJ6ZrJAsyg85cm1t4aK9ne5nNjbjNPzJFTZ+QNMSRw==}
@@ -1561,8 +1552,6 @@ snapshots:
   '@types/node@26.0.0':
     dependencies:
       undici-types: 8.3.0
-
-  '@types/picomatch@4.0.3': {}
 
   '@typescript/native-preview-darwin-arm64@7.0.0-dev.20260622.1':
     optional: true

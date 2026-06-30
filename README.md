@@ -460,7 +460,7 @@ Notes:
 - `node_modules` can be included by passing `withNodeModules: true`.
 
 - The default lockfile list mirrors oxfmt documentation intent (`package-lock.json`, `pnpm-lock.yaml`, etc.) and common ecosystem lockfiles. It is not guaranteed to be a complete internal oxfmt list.
-- `ignorePatterns` are always interpreted relative to the resolved oxfmt config directory.
+- `ignorePatterns` use gitignore semantics and are interpreted relative to the resolved oxfmt config directory.
 - `includeConfigIgnorePatterns` defaults to `true` to preserve current behavior.
 - `loadConfigForIgnorePatterns` defaults to `true` to preserve current behavior.
 - Nested config behavior follows oxfmt semantics:

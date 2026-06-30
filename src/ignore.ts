@@ -10,7 +10,6 @@ import {
 import process from 'node:process'
 import ignore from 'ignore'
 import type { Ignore } from 'ignore'
-import picomatch from 'picomatch'
 import { DEFAULT_IGNORED_DIRS, DEFAULT_IGNORED_LOCKFILES } from './constants'
 import { loadOxfmtConfig } from './core'
 import type { IsOxfmtIgnoredOptions, IsOxfmtIgnoredResult } from './types'
@@ -223,26 +222,12 @@ function matchConfigIgnorePatterns(
   patterns: string[],
 ) {
   const relativeFile = relativeSafe(configDir, filepath)
-  let ignored = false
-
-  for (const rawPattern of patterns) {
-    if (!rawPattern) {
-      continue
-    }
-
-    const isNegative = rawPattern.startsWith('!')
-    const pattern = isNegative ? rawPattern.slice(1) : rawPattern
-    if (!pattern) {
-      continue
-    }
-
-    const matcher = picomatch(pattern, { dot: true })
-    if (matcher(relativeFile)) {
-      ignored = !isNegative
-    }
+  if (relativeFile === '..' || relativeFile.startsWith('../')) {
+    return false
   }
 
-  return ignored
+  const matcher = ignore().add(patterns)
+  return matcher.ignores(relativeFile)
 }
 
 /**

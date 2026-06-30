@@ -13,6 +13,7 @@
     "changelogithub",
     "codecov",
     "esbuild",
+    "Gopkg",
     "lcov",
     "oxfmt",
     "Oxfmtrc",
