@@ -1,7 +1,7 @@
 import type { FormatConfig } from 'oxfmt'
 
 /**
- * Object-form editorconfig option, enabling fine-grained control.
+ * Object-form `.editorconfig` option for fine-grained lookup control.
  */
 export interface EditorconfigOption {
   /**
@@ -13,41 +13,43 @@ export interface EditorconfigOption {
   onlyCwd?: boolean
   /**
    * Override the directory from which `.editorconfig` resolution starts.
-   * When set, editorconfig is searched from this directory instead of from
-   * the config file's directory (or the top-level `cwd`).
    *
-   * This is useful when the oxfmt config path is pre-resolved and you still
-   * want editorconfig to be resolved relative to each file's directory.
+   * When set, `.editorconfig` is searched from this directory instead of from
+   * the config lookup directory. This is useful when the oxfmt config path is
+   * pre-resolved and EditorConfig should still be resolved from another
+   * directory, such as each file's directory.
    */
   cwd?: string
 }
 
 /**
- * Format option override for a single matching rule
+ * Format option override for a single matching rule.
  */
 export interface OxfmtConfigOverride {
   /**
-   * Glob patterns to match files
+   * Glob patterns to match files.
    */
   files: string[]
   /**
-   * Glob patterns to exclude files
+   * Glob patterns to exclude files.
    */
   excludeFiles?: string[]
   /**
-   * Format options to apply
+   * Format options to apply.
    */
   options?: FormatConfig
 }
 
-// Options for loading oxfmt configuration
+/**
+ * Options for loading and merging oxfmt configuration.
+ */
 export interface LoadOxfmtConfigOptions {
   /**
-   * Path to the configuration file
+   * Path to the configuration file.
    */
   configPath?: string
   /**
-   * Current working directory
+   * Current working directory.
    */
   cwd?: string
   /**
@@ -64,7 +66,9 @@ export interface LoadOxfmtConfigOptions {
    */
   disableNestedConfig?: boolean
   /**
-   * Whether to use cache
+   * Whether to use in-memory caches for path resolution and parsed config contents.
+   *
+   * @default true
    */
   useCache?: boolean
   /**
@@ -80,16 +84,17 @@ export interface LoadOxfmtConfigOptions {
 }
 
 /**
- * Final oxfmt options (including overrides)
+ * Final oxfmt options, including config `ignorePatterns` and `overrides`.
  */
 export interface OxfmtOptions extends FormatConfig {
   /**
-   * Ignore files matching these glob patterns
-   * Patterns are based on the location of the Oxfmt configuration file
+   * Ignore files matching these glob patterns.
+   *
+   * Patterns are based on the location of the oxfmt configuration file.
    */
   ignorePatterns?: string[]
   /**
-   * Array of format option overrides
+   * Array of format option overrides.
    */
   overrides?: OxfmtConfigOverride[]
 }
@@ -99,15 +104,15 @@ export interface OxfmtOptions extends FormatConfig {
  */
 export interface LoadOxfmtConfigResult {
   /**
-   * Final merged config (oxfmt + optional editorconfig mapping)
+   * Final merged config from oxfmt and optional `.editorconfig` mapping.
    */
   config: OxfmtOptions
   /**
-   * Absolute path of resolved config file
+   * Absolute path of resolved config file.
    */
   filepath?: string
   /**
-   * Directory of resolved config file
+   * Directory of resolved config file.
    */
   dirname?: string
 }
@@ -118,6 +123,7 @@ export interface LoadOxfmtConfigResult {
 export interface IsOxfmtIgnoredOptions {
   /**
    * Current working directory.
+   *
    * Also the base directory for default `.prettierignore` lookup.
    */
   cwd?: string
@@ -127,37 +133,46 @@ export interface IsOxfmtIgnoredOptions {
   filepath: string
   /**
    * Explicit oxfmt config path.
+   *
    * When provided, nested config lookup is disabled (same as oxfmt CLI -c).
    */
   configPath?: string
   /**
-   * Ignore files to use instead of default `.gitignore` hierarchy + cwd `.prettierignore`.
-   * Can be passed multiple times in CLI style.
+   * Ignore files to use instead of the default cwd `.prettierignore`.
+   *
+   * Explicit ignore paths do not replace `.gitignore` or `.git/info/exclude`
+   * handling. They can be passed multiple times in CLI style.
    */
   ignorePath?: string | string[]
   /**
    * Whether node_modules should be included.
+   *
    * @default false
    */
   withNodeModules?: boolean
   /**
    * Disable nested config lookup.
+   *
    * @default false
    */
   disableNestedConfig?: boolean
   /**
    * Whether to use in-memory cache.
+   *
    * @default true
    */
   useCache?: boolean
   /**
    * Whether to include ignore patterns defined in the config file.
+   *
    * @default true
    */
   includeConfigIgnorePatterns?: boolean
   /**
    * Whether to load resolved oxfmt config when evaluating config ignore patterns.
+   *
    * When false, only global ignore is applied and config loading is skipped.
+   *
    * @default true
    */
   loadConfigForIgnorePatterns?: boolean
@@ -172,7 +187,7 @@ export interface IsOxfmtIgnoredResult {
    */
   ignored: boolean
   /**
-   * Matched ignore source.
+   * Matched ignore source when `ignored` is true.
    */
   reason?:
     | 'default-dir'

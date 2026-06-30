@@ -247,10 +247,10 @@ Control how `.editorconfig` files are read and merged:
 - **`false`** — Disable `.editorconfig` reading entirely.
 - **`EditorconfigOption`** — Enable with additional settings:
 
-| Property  | Type      | Default     | Description                                                                                                           |
-| --------- | --------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
-| `onlyCwd` | `boolean` | `false`     | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal.                                     |
-| `cwd`     | `string`  | `undefined` | Override the directory from which `.editorconfig` resolution starts, instead of the config file's directory or `cwd`. |
+| Property  | Type      | Default     | Description                                                                                                   |
+| --------- | --------- | ----------- | ------------------------------------------------------------------------------------------------------------- |
+| `onlyCwd` | `boolean` | `false`     | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal.                             |
+| `cwd`     | `string`  | `undefined` | Override the directory from which `.editorconfig` resolution starts, instead of the default lookup directory. |
 
 **Returns:** `Promise<LoadOxfmtConfigResult>`
 
@@ -309,8 +309,9 @@ When provided, nested config lookup is disabled (same as oxfmt CLI `-c`).
 - **Type:** `string | string[]`
 - **Default:** `undefined`
 
-Ignore files to use instead of default `.gitignore` hierarchy + cwd `.prettierignore`.
+Ignore files to use instead of the default cwd `.prettierignore`.
 Can be passed multiple times in CLI style.
+Explicit ignore paths do not replace `.gitignore` or `.git/info/exclude` handling.
 
 #### `withNodeModules`
 
@@ -449,11 +450,10 @@ Global ignore includes:
 - Default ignored directories: `.git`, `.jj`, `.sl`, `.svn`, `.hg`, `node_modules`
 - Default lockfiles: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `MODULE.bazel.lock`, `bun.lock`, `deno.lock`, `composer.lock`, `Package.resolved`, `Pipfile.lock`, `flake.lock`, `Cargo.lock`, `Gopkg.lock`, `pdm.lock`, `poetry.lock`, `uv.lock`, `npm-shrinkwrap.json`, `bun.lockb`
 - Ignore files:
-  - If `ignorePath` is provided: use those files only (multiple supported)
-  - If `ignorePath` is not provided:
-    - Read `.gitignore` from the file's directory upward until the git repo boundary
-    - Read `<repo>/.git/info/exclude` when inside a git repo
-    - Read `.prettierignore` from `cwd`
+  - Always read `.gitignore` from the file's directory upward until the git repo boundary
+  - Always read `<repo>/.git/info/exclude` when inside a git repo
+  - If `ignorePath` is provided: read those files instead of `cwd/.prettierignore`
+  - If `ignorePath` is not provided: read `.prettierignore` from `cwd`
 
 Notes:
 
@@ -478,7 +478,7 @@ The merged result follows this order:
 3. Overrides generated from `.editorconfig` sections
 4. Overrides declared directly in the oxfmt config file
 
-This means explicit oxfmt config values always win over `.editorconfig` fallback values.
+This means explicit root-level oxfmt config values win over root-level `.editorconfig` fallback values. Section-specific `.editorconfig` entries are represented as generated `overrides` in the static result, and explicit oxfmt `overrides` are appended after them.
 
 ## Limitations
 

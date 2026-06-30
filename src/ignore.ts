@@ -15,11 +15,27 @@ import { loadOxfmtConfig } from './core'
 import type { IsOxfmtIgnoredOptions, IsOxfmtIgnoredResult } from './types'
 import { cachePromise, splitPathSegments, toPosixPath } from './utils'
 
+/**
+ * Cache parsed ignore file matchers by ignore file path.
+ */
 const ignoreMatcherCache = new Map<string, Promise<Ignore | undefined>>()
+
+/**
+ * Cache compiled matchers for config-level `ignorePatterns`.
+ */
 const configIgnoreMatcherCache = new Map<string, Ignore>()
 
+/**
+ * Ignore file descriptor with an optional matching base directory override.
+ */
 interface IgnoreFileEntry {
+  /**
+   * Directory used to compute relative paths before matching.
+   */
   baseDir?: string
+  /**
+   * Absolute path to the ignore file.
+   */
   path: string
 }
 
