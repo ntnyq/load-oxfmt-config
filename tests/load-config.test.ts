@@ -291,6 +291,27 @@ describe(loadOxfmtConfig, () => {
       })
     })
 
+    it('loads native ESM config with bare package imports when useCache is false', async () => {
+      await withTempDir('oxfmt-config-esm-bare-import-', async cwd => {
+        const configPath = join(cwd, 'oxfmt.config.mjs')
+
+        await writeFile(
+          configPath,
+          "import createIgnore from 'ignore'\nconst ig = createIgnore()\nexport default { printWidth: ig ? 85 : 0 }\n",
+          'utf8',
+        )
+
+        const result = await loadOxfmtConfig({
+          cwd,
+          configPath,
+          editorconfig: false,
+          useCache: false,
+        })
+
+        expect(result.config.printWidth).toBe(85)
+      })
+    })
+
     it('reloads changed CommonJS config helper when useCache is false', async () => {
       await withTempDir('oxfmt-config-cjs-helper-cache-bypass-', async cwd => {
         const configPath = join(cwd, 'oxfmt.config.cjs')
@@ -328,7 +349,7 @@ describe(loadOxfmtConfig, () => {
       { filename: 'oxfmt.config.mjs' },
       { filename: 'oxfmt.config.js' },
     ])(
-      'reloads changed ESM config helper for $filename when useCache is false',
+      'does not reload changed ESM config helper for $filename when useCache is false',
       async testCase => {
         await withTempDir(
           'oxfmt-config-esm-helper-cache-bypass-',
@@ -361,7 +382,7 @@ describe(loadOxfmtConfig, () => {
             })
 
             expect(first.config.printWidth).toBe(83)
-            expect(second.config.printWidth).toBe(84)
+            expect(second.config.printWidth).toBe(83)
           },
         )
       },
