@@ -182,16 +182,20 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
-  it('uses explicit ignorePath files instead of cwd .gitignore/.prettierignore', async () => {
+  it('uses explicit ignorePath files instead of cwd .prettierignore while keeping .gitignore', async () => {
     await withTempDir('oxfmt-ignore-explicit-', async cwd => {
       const distFile = join(cwd, 'dist', 'a.js')
       const customFile = join(cwd, 'custom', 'a.js')
+      const prettierIgnoredFile = join(cwd, 'snapshots', 'a.js')
       await mkdir(join(cwd, 'dist'), { recursive: true })
       await mkdir(join(cwd, 'custom'), { recursive: true })
+      await mkdir(join(cwd, 'snapshots'), { recursive: true })
       await writeFile(join(cwd, '.gitignore'), 'dist/**\n', 'utf8')
+      await writeFile(join(cwd, '.prettierignore'), 'snapshots/**\n', 'utf8')
       await writeFile(join(cwd, '.customignore'), 'custom/**\n', 'utf8')
       await writeFile(distFile, 'console.log(1)\n', 'utf8')
       await writeFile(customFile, 'console.log(1)\n', 'utf8')
+      await writeFile(prettierIgnoredFile, 'console.log(1)\n', 'utf8')
 
       const distResult = await isOxfmtIgnored({
         cwd,
@@ -203,12 +207,18 @@ describe(isOxfmtIgnored, () => {
         filepath: customFile,
         ignorePath: ['.customignore'],
       })
+      const prettierIgnoredResult = await isOxfmtIgnored({
+        cwd,
+        filepath: prettierIgnoredFile,
+        ignorePath: ['.customignore'],
+      })
 
-      expect(distResult).toStrictEqual({ ignored: false })
+      expect(distResult).toStrictEqual({ ignored: true, reason: 'gitignore' })
       expect(customResult).toStrictEqual({
         ignored: true,
         reason: 'ignore-path',
       })
+      expect(prettierIgnoredResult).toStrictEqual({ ignored: false })
     })
   })
 
@@ -323,32 +333,60 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
-  it('uses ignorePath and skips default gitignore chain, prettierignore and git info exclude', async () => {
+  it('uses ignorePath and still respects gitignore chain and git info exclude', async () => {
     await withTempDir(
-      'oxfmt-ignore-ignore-path-overrides-default-',
+      'oxfmt-ignore-ignore-path-keeps-gitignore-',
       async cwd => {
         const repoRoot = join(cwd, 'repo')
-        const filepath = join(repoRoot, 'src', 'a.ts')
+        const gitignoredFile = join(repoRoot, 'src', 'a.ts')
+        const gitInfoExcludedFile = join(repoRoot, 'logs', 'a.ts')
+        const prettierIgnoredFile = join(repoRoot, 'snapshots', 'a.ts')
 
         await mkdir(join(repoRoot, '.git', 'info'), { recursive: true })
         await mkdir(join(repoRoot, 'src'), { recursive: true })
+        await mkdir(join(repoRoot, 'logs'), { recursive: true })
+        await mkdir(join(repoRoot, 'snapshots'), { recursive: true })
         await writeFile(join(repoRoot, '.gitignore'), 'src/**\n', 'utf8')
         await writeFile(
           join(repoRoot, '.git', 'info', 'exclude'),
-          'src/a.ts\n',
+          'logs/a.ts\n',
           'utf8',
         )
-        await writeFile(join(repoRoot, '.prettierignore'), 'src/**\n', 'utf8')
+        await writeFile(
+          join(repoRoot, '.prettierignore'),
+          'snapshots/**\n',
+          'utf8',
+        )
         await writeFile(join(repoRoot, '.customignore'), 'dist/**\n', 'utf8')
-        await writeFile(filepath, 'export const a = 1\n', 'utf8')
+        await writeFile(gitignoredFile, 'export const a = 1\n', 'utf8')
+        await writeFile(gitInfoExcludedFile, 'export const a = 1\n', 'utf8')
+        await writeFile(prettierIgnoredFile, 'export const a = 1\n', 'utf8')
 
-        const result = await isOxfmtIgnored({
+        const gitignoredResult = await isOxfmtIgnored({
           cwd: repoRoot,
-          filepath,
+          filepath: gitignoredFile,
+          ignorePath: '.customignore',
+        })
+        const gitInfoExcludedResult = await isOxfmtIgnored({
+          cwd: repoRoot,
+          filepath: gitInfoExcludedFile,
+          ignorePath: '.customignore',
+        })
+        const prettierIgnoredResult = await isOxfmtIgnored({
+          cwd: repoRoot,
+          filepath: prettierIgnoredFile,
           ignorePath: '.customignore',
         })
 
-        expect(result).toStrictEqual({ ignored: false })
+        expect(gitignoredResult).toStrictEqual({
+          ignored: true,
+          reason: 'gitignore',
+        })
+        expect(gitInfoExcludedResult).toStrictEqual({
+          ignored: true,
+          reason: 'git-info-exclude',
+        })
+        expect(prettierIgnoredResult).toStrictEqual({ ignored: false })
       },
     )
   })
