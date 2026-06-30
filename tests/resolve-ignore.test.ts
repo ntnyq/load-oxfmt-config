@@ -26,6 +26,28 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
+  it.each(['.hg', '.sl'])(
+    'always ignores default VCS directory %s',
+    async ignoredDir => {
+      await withTempDir('oxfmt-ignore-default-vcs-', async cwd => {
+        const filepath = join(cwd, ignoredDir, 'store', 'index.js')
+        await mkdir(join(cwd, ignoredDir, 'store'), { recursive: true })
+        await writeFile(filepath, 'export {}\n', 'utf8')
+
+        const result = await isOxfmtIgnored({
+          cwd,
+          filepath,
+          withNodeModules: true,
+        })
+
+        expect(result).toStrictEqual({
+          ignored: true,
+          reason: 'default-dir',
+        })
+      })
+    },
+  )
+
   it('does not treat a filename that matches an ignored directory name as ignored', async () => {
     await withTempDir('oxfmt-ignore-filename-collision-', async cwd => {
       const filepath = join(cwd, 'src', 'node_modules')
@@ -42,6 +64,29 @@ describe(isOxfmtIgnored, () => {
     await withTempDir('oxfmt-ignore-lock-', async cwd => {
       const filepath = join(cwd, 'pnpm-lock.yaml')
       await writeFile(filepath, 'lockfileVersion: 9\n', 'utf8')
+
+      const result = await isOxfmtIgnored({ cwd, filepath })
+
+      expect(result).toStrictEqual({ ignored: true, reason: 'lockfile' })
+    })
+  })
+
+  it.each([
+    'MODULE.bazel.lock',
+    'deno.lock',
+    'composer.lock',
+    'Package.resolved',
+    'Pipfile.lock',
+    'flake.lock',
+    'Cargo.lock',
+    'Gopkg.lock',
+    'pdm.lock',
+    'poetry.lock',
+    'uv.lock',
+  ])('ignores upstream oxfmt lockfile %s by default', async lockfile => {
+    await withTempDir('oxfmt-ignore-upstream-lock-', async cwd => {
+      const filepath = join(cwd, lockfile)
+      await writeFile(filepath, 'lockfile\n', 'utf8')
 
       const result = await isOxfmtIgnored({ cwd, filepath })
 
