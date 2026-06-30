@@ -1,5 +1,7 @@
 import { readFile, stat } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { extname, isAbsolute, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { interopDefault } from '@ntnyq/utils'
 import type { ParseError } from 'jsonc-parser'
 import { parse as parseJSONC, printParseErrorCode } from 'jsonc-parser'
@@ -8,6 +10,9 @@ import {
   OXFMT_EXPLICIT_CONFIG_EXTENSIONS,
 } from './constants'
 import type { OxfmtOptions } from './types'
+
+const require = createRequire(import.meta.url)
+let freshImportCounter = 0
 
 function isConfigObject(value: unknown): value is OxfmtOptions {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -34,6 +39,69 @@ function readConfigDefaultExport(mod: Record<string, unknown>): OxfmtOptions {
   }
 
   return config
+}
+
+function readConfigModuleExports(config: unknown): OxfmtOptions {
+  if (!isConfigObject(config)) {
+    throw new Error('Configuration file must export an object.')
+  }
+
+  return config
+}
+
+async function importJitiConfigModule(
+  resolvedPath: string,
+  useCache: boolean,
+): Promise<Record<string, unknown>> {
+  const createJiti = await interopDefault(import('jiti'))
+  const jiti = createJiti(
+    import.meta.url,
+    useCache ? undefined : { fsCache: false, moduleCache: false },
+  )
+  return jiti.import<Record<string, unknown>>(resolvedPath)
+}
+
+function importNativeFreshModule(
+  resolvedPath: string,
+): Promise<Record<string, unknown>> {
+  const url = pathToFileURL(resolvedPath)
+  url.searchParams.set('oxfmtConfigCacheBust', String(++freshImportCounter))
+  return import(url.href) as Promise<Record<string, unknown>>
+}
+
+function requireFreshModule(resolvedPath: string): unknown {
+  const requirePath = require.resolve(resolvedPath)
+  Reflect.deleteProperty(require.cache, requirePath)
+  // eslint-disable-next-line import/no-dynamic-require -- Config paths are provided at runtime.
+  return require(requirePath)
+}
+
+function requireFreshCommonJSConfig(resolvedPath: string): OxfmtOptions {
+  const configModule = requireFreshModule(resolvedPath)
+  if (Object.prototype.toString.call(configModule) === '[object Module]') {
+    return readConfigDefaultExport(configModule as Record<string, unknown>)
+  }
+
+  return readConfigModuleExports(configModule)
+}
+
+async function importFreshJavaScriptConfigModule(
+  resolvedPath: string,
+): Promise<Record<string, unknown>> {
+  try {
+    const configModule = requireFreshModule(resolvedPath)
+    if (Object.prototype.toString.call(configModule) === '[object Module]') {
+      return importNativeFreshModule(resolvedPath)
+    }
+
+    return { default: readConfigModuleExports(configModule) }
+  } catch {
+    try {
+      return await importNativeFreshModule(resolvedPath)
+    } catch {
+      return importJitiConfigModule(resolvedPath, false)
+    }
+  }
 }
 
 /**
@@ -130,12 +198,15 @@ export async function resolveOxfmtrcPath(
  * Read and parse an oxfmt config file.
  *
  * @param resolvedPath - Absolute path to config file.
+ * @param options - Config loading options.
  * @returns Parsed config object.
  */
 export async function readConfigFromFile(
   resolvedPath: string,
+  options: { useCache?: boolean } = {},
 ): Promise<OxfmtOptions> {
   const extension = extname(resolvedPath)
+  const useCache = options.useCache !== false
 
   if (
     extension === '.ts' ||
@@ -145,9 +216,21 @@ export async function readConfigFromFile(
     extension === '.mjs' ||
     extension === '.cjs'
   ) {
-    const createJiti = await interopDefault(import('jiti'))
-    const jiti = createJiti(import.meta.url)
-    const mod = await jiti.import<Record<string, unknown>>(resolvedPath)
+    if (!useCache && extension === '.cjs') {
+      return requireFreshCommonJSConfig(resolvedPath)
+    }
+
+    if (!useCache && extension === '.mjs') {
+      const mod = await importNativeFreshModule(resolvedPath)
+      return readConfigDefaultExport(mod)
+    }
+
+    if (!useCache && extension === '.js') {
+      const mod = await importFreshJavaScriptConfigModule(resolvedPath)
+      return readConfigDefaultExport(mod)
+    }
+
+    const mod = await importJitiConfigModule(resolvedPath, useCache)
     return readConfigDefaultExport(mod)
   }
 

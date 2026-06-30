@@ -16,6 +16,7 @@ import type { IsOxfmtIgnoredOptions, IsOxfmtIgnoredResult } from './types'
 import { cachePromise, splitPathSegments, toPosixPath } from './utils'
 
 const ignoreMatcherCache = new Map<string, Promise<Ignore | undefined>>()
+const configIgnoreMatcherCache = new Map<string, Ignore>()
 
 /**
  * Check whether a file is under oxfmt's default ignored directories.
@@ -214,19 +215,32 @@ async function collectGitignorePaths(filepath: string) {
  * @param filepath - Absolute file path.
  * @param configDir - Resolved config directory.
  * @param patterns - Config ignore patterns.
+ * @param useCache - Whether to reuse compiled pattern matchers.
  * @returns True when patterns mark the file as ignored.
  */
 function matchConfigIgnorePatterns(
   filepath: string,
   configDir: string,
   patterns: string[],
+  useCache: boolean,
 ) {
   const relativeFile = relativeSafe(configDir, filepath)
   if (relativeFile === '..' || relativeFile.startsWith('../')) {
     return false
   }
 
+  if (!useCache) {
+    return ignore().add(patterns).ignores(relativeFile)
+  }
+
+  const cacheKey = `${configDir}::${JSON.stringify(patterns)}`
+  const cachedMatcher = configIgnoreMatcherCache.get(cacheKey)
+  if (cachedMatcher) {
+    return cachedMatcher.ignores(relativeFile)
+  }
+
   const matcher = ignore().add(patterns)
+  configIgnoreMatcherCache.set(cacheKey, matcher)
   return matcher.ignores(relativeFile)
 }
 
@@ -333,6 +347,7 @@ export async function isOxfmtIgnored(
       filepath,
       configResult.dirname,
       configResult.config.ignorePatterns,
+      useCache,
     )
   ) {
     return { ignored: true, reason: 'config-ignore-patterns' }

@@ -10,7 +10,7 @@
 ## Features
 
 - 🔍 **Auto-discovery** - Automatically searches for config files in current and parent directories
-- 📦 **Multiple formats** - Auto-discovers `.oxfmtrc.json`, `.oxfmtrc.jsonc`, and `oxfmt.config.ts`, and also supports explicit `.js` / `.mjs` / `.cjs` / `.mts` / `.cts` config paths
+- 📦 **Multiple formats** - Auto-discovers `.oxfmtrc.json`, `.oxfmtrc.jsonc`, and `oxfmt.config.ts`, and also supports explicit `.json` / `.jsonc` / `.js` / `.mjs` / `.cjs` / `.ts` / `.mts` / `.cts` config paths
 - 🧩 **EditorConfig fallback** - Merges supported `.editorconfig` fields into the returned oxfmt config result
 - 🚫 **Ignore resolution** - Resolves ignore status with oxfmt CLI-like global + config-scoped semantics
 - ⚡ **Built-in caching** - Caches both file resolution and parsed configs for optimal performance
@@ -446,8 +446,8 @@ Set `loadConfigForIgnorePatterns: false` to skip config loading entirely and kee
 
 Global ignore includes:
 
-- Default ignored directories: `.git`, `.svn`, `.jj`, `node_modules`
-- Default lockfiles: `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `bun.lockb`
+- Default ignored directories: `.git`, `.jj`, `.sl`, `.svn`, `.hg`, `node_modules`
+- Default lockfiles: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `MODULE.bazel.lock`, `bun.lock`, `deno.lock`, `composer.lock`, `Package.resolved`, `Pipfile.lock`, `flake.lock`, `Cargo.lock`, `Gopkg.lock`, `pdm.lock`, `poetry.lock`, `uv.lock`, `npm-shrinkwrap.json`, `bun.lockb`
 - Ignore files:
   - If `ignorePath` is provided: use those files only (multiple supported)
   - If `ignorePath` is not provided:

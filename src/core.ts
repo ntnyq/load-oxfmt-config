@@ -97,7 +97,7 @@ export async function loadOxfmtConfig(
 
   const loadTask = async () => {
     const oxfmtConfig = resolvedPath
-      ? await readConfigFromFile(resolvedPath).catch(error => {
+      ? await readConfigFromFile(resolvedPath, { useCache }).catch(error => {
           throw new Error(
             `Failed to parse oxfmt configuration file at ${resolvedPath}: ${error instanceof Error ? error.message : String(error)}`,
             {
