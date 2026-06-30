@@ -291,6 +291,49 @@ describe(loadOxfmtConfig, () => {
       })
     })
 
+    it('reuses unchanged native ESM config module URL when useCache is false', async () => {
+      await withTempDir('oxfmt-config-js-esm-cache-key-', async cwd => {
+        const globals = globalThis as typeof globalThis & {
+          loadOxfmtConfigImportCount?: number
+        }
+        const configPath = join(cwd, 'oxfmt.config.mjs')
+
+        globals.loadOxfmtConfigImportCount = 0
+
+        try {
+          await writeFile(
+            configPath,
+            [
+              'globalThis.loadOxfmtConfigImportCount =',
+              '  (globalThis.loadOxfmtConfigImportCount ?? 0) + 1',
+              'export default { printWidth: globalThis.loadOxfmtConfigImportCount }',
+              '',
+            ].join('\n'),
+            'utf8',
+          )
+
+          const first = await loadOxfmtConfig({
+            cwd,
+            configPath,
+            editorconfig: false,
+            useCache: false,
+          })
+          const second = await loadOxfmtConfig({
+            cwd,
+            configPath,
+            editorconfig: false,
+            useCache: false,
+          })
+
+          expect(first.config.printWidth).toBe(1)
+          expect(second.config.printWidth).toBe(1)
+          expect(globals.loadOxfmtConfigImportCount).toBe(1)
+        } finally {
+          delete globals.loadOxfmtConfigImportCount
+        }
+      })
+    })
+
     it('preserves ignorePatterns with cache enabled', async () => {
       const cwd = fixturePath('load', 'ignore-cache')
       const configPath = '.oxfmtrc.json'

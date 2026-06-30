@@ -236,6 +236,28 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
+  it('lets nested .gitignore negation override parent ignore rules', async () => {
+    await withTempDir('oxfmt-ignore-parent-gitignore-negation-', async cwd => {
+      const repoRoot = join(cwd, 'repo')
+      const packageDir = join(repoRoot, 'packages', 'app')
+      const filepath = join(packageDir, 'src', 'keep.ts')
+
+      await mkdir(join(repoRoot, '.git'), { recursive: true })
+      await mkdir(join(packageDir, 'src'), { recursive: true })
+      await writeFile(join(repoRoot, '.gitignore'), '*.ts\n', 'utf8')
+      await writeFile(join(packageDir, '.gitignore'), '!src/keep.ts\n', 'utf8')
+      await writeFile(filepath, 'export const keep = true\n', 'utf8')
+
+      const result = await isOxfmtIgnored({
+        cwd: repoRoot,
+        filepath,
+        useCache: false,
+      })
+
+      expect(result).toStrictEqual({ ignored: false })
+    })
+  })
+
   it('reads .git/info/exclude from repo root', async () => {
     await withTempDir('oxfmt-ignore-git-info-exclude-', async cwd => {
       const repoRoot = join(cwd, 'repo')
@@ -276,6 +298,25 @@ describe(isOxfmtIgnored, () => {
       const result = await isOxfmtIgnored({
         cwd: repoRoot,
         filepath,
+      })
+
+      expect(result).toStrictEqual({ ignored: false })
+    })
+  })
+
+  it('lets later explicit ignorePath negation override earlier ignorePath rules', async () => {
+    await withTempDir('oxfmt-ignore-explicit-negation-', async cwd => {
+      const filepath = join(cwd, 'src', 'keep.ts')
+      await mkdir(join(cwd, 'src'), { recursive: true })
+      await writeFile(join(cwd, '.ignore'), '*.ts\n', 'utf8')
+      await writeFile(join(cwd, '.allow'), '!src/keep.ts\n', 'utf8')
+      await writeFile(filepath, 'export const keep = true\n', 'utf8')
+
+      const result = await isOxfmtIgnored({
+        cwd,
+        filepath,
+        ignorePath: ['.ignore', '.allow'],
+        useCache: false,
       })
 
       expect(result).toStrictEqual({ ignored: false })

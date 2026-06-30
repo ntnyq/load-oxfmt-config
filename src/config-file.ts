@@ -12,7 +12,6 @@ import {
 import type { OxfmtOptions } from './types'
 
 const require = createRequire(import.meta.url)
-let freshImportCounter = 0
 
 function isConfigObject(value: unknown): value is OxfmtOptions {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -61,11 +60,19 @@ async function importJitiConfigModule(
   return jiti.import<Record<string, unknown>>(resolvedPath)
 }
 
-function importNativeFreshModule(
+async function getFreshImportCacheKey(resolvedPath: string) {
+  const stats = await stat(resolvedPath, { bigint: true })
+  return `${stats.mtimeNs}:${stats.size}`
+}
+
+async function importNativeFreshModule(
   resolvedPath: string,
 ): Promise<Record<string, unknown>> {
   const url = pathToFileURL(resolvedPath)
-  url.searchParams.set('oxfmtConfigCacheBust', String(++freshImportCounter))
+  url.searchParams.set(
+    'oxfmtConfigCacheBust',
+    await getFreshImportCacheKey(resolvedPath),
+  )
   return import(url.href) as Promise<Record<string, unknown>>
 }
 

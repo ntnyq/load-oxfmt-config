@@ -18,6 +18,11 @@ import { cachePromise, splitPathSegments, toPosixPath } from './utils'
 const ignoreMatcherCache = new Map<string, Promise<Ignore | undefined>>()
 const configIgnoreMatcherCache = new Map<string, Ignore>()
 
+interface IgnoreFileEntry {
+  baseDir?: string
+  path: string
+}
+
 /**
  * Check whether a file is under oxfmt's default ignored directories.
  *
@@ -121,6 +126,46 @@ async function matchIgnoreFile(
   }
 
   return matcher.ignores(relativeToIgnore)
+}
+
+/**
+ * Match a file path against ordered ignore files while preserving negation state.
+ *
+ * @param filepath - Absolute file path.
+ * @param ignoreFileEntries - Ignore files in increasing precedence order.
+ * @param useCache - Whether to use matcher cache.
+ * @returns True when the ordered ignore files mark the file as ignored.
+ */
+async function matchIgnoreFileChain(
+  filepath: string,
+  ignoreFileEntries: IgnoreFileEntry[],
+  useCache: boolean,
+) {
+  let ignored = false
+
+  for (const entry of ignoreFileEntries) {
+    const matcher = await loadIgnoreMatcher(entry.path, useCache)
+    if (!matcher) {
+      continue
+    }
+
+    const relativeToIgnore = relativeSafe(
+      entry.baseDir ?? dirname(entry.path),
+      filepath,
+    )
+    if (relativeToIgnore === '..' || relativeToIgnore.startsWith('../')) {
+      continue
+    }
+
+    const result = matcher.test(relativeToIgnore)
+    if (result.ignored) {
+      ignored = true
+    } else if (result.unignored) {
+      ignored = false
+    }
+  }
+
+  return ignored
 }
 
 /**
@@ -294,18 +339,18 @@ export async function isOxfmtIgnored(
   )
 
   if (explicitIgnorePaths && explicitIgnorePaths.length > 0) {
-    for (const ignoreFilePath of explicitIgnorePaths) {
-      if (await matchIgnoreFile(filepath, ignoreFilePath, useCache)) {
-        return { ignored: true, reason: 'ignore-path' }
-      }
+    const explicitIgnoreEntries = explicitIgnorePaths.map(path => ({ path }))
+    if (await matchIgnoreFileChain(filepath, explicitIgnoreEntries, useCache)) {
+      return { ignored: true, reason: 'ignore-path' }
     }
   } else {
     const { paths: gitignorePaths, repoRoot } =
       await collectGitignorePaths(filepath)
-    for (const ignorePath of gitignorePaths) {
-      if (await matchIgnoreFile(filepath, ignorePath, useCache)) {
-        return { ignored: true, reason: 'gitignore' }
-      }
+    const gitignoreEntries = [...gitignorePaths].reverse().map(path => ({
+      path,
+    }))
+    if (await matchIgnoreFileChain(filepath, gitignoreEntries, useCache)) {
+      return { ignored: true, reason: 'gitignore' }
     }
 
     if (repoRoot) {
