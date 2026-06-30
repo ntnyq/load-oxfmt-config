@@ -10,7 +10,7 @@
 ## Features
 
 - 🔍 **Auto-discovery** - Automatically searches for config files in current and parent directories
-- 📦 **Multiple formats** - Auto-discovers `.oxfmtrc.json`, `.oxfmtrc.jsonc`, and `oxfmt.config.ts`, and also supports explicit `.js` / `.mjs` / `.cjs` / `.mts` / `.cts` config paths
+- 📦 **Multiple formats** - Auto-discovers `.oxfmtrc.json`, `.oxfmtrc.jsonc`, and `oxfmt.config.ts`, and also supports explicit `.json` / `.jsonc` / `.js` / `.mjs` / `.cjs` / `.ts` / `.mts` / `.cts` config paths
 - 🧩 **EditorConfig fallback** - Merges supported `.editorconfig` fields into the returned oxfmt config result
 - 🚫 **Ignore resolution** - Resolves ignore status with oxfmt CLI-like global + config-scoped semantics
 - ⚡ **Built-in caching** - Caches both file resolution and parsed configs for optimal performance
@@ -247,10 +247,10 @@ Control how `.editorconfig` files are read and merged:
 - **`false`** — Disable `.editorconfig` reading entirely.
 - **`EditorconfigOption`** — Enable with additional settings:
 
-| Property  | Type      | Default     | Description                                                                                                           |
-| --------- | --------- | ----------- | --------------------------------------------------------------------------------------------------------------------- |
-| `onlyCwd` | `boolean` | `false`     | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal.                                     |
-| `cwd`     | `string`  | `undefined` | Override the directory from which `.editorconfig` resolution starts, instead of the config file's directory or `cwd`. |
+| Property  | Type      | Default     | Description                                                                                                   |
+| --------- | --------- | ----------- | ------------------------------------------------------------------------------------------------------------- |
+| `onlyCwd` | `boolean` | `false`     | When `true`, only look for `.editorconfig` in `cwd` itself — no upward traversal.                             |
+| `cwd`     | `string`  | `undefined` | Override the directory from which `.editorconfig` resolution starts, instead of the default lookup directory. |
 
 **Returns:** `Promise<LoadOxfmtConfigResult>`
 
@@ -309,8 +309,9 @@ When provided, nested config lookup is disabled (same as oxfmt CLI `-c`).
 - **Type:** `string | string[]`
 - **Default:** `undefined`
 
-Ignore files to use instead of default `.gitignore` hierarchy + cwd `.prettierignore`.
+Ignore files to use instead of the default cwd `.prettierignore`.
 Can be passed multiple times in CLI style.
+Explicit ignore paths do not replace `.gitignore` or `.git/info/exclude` handling.
 
 #### `withNodeModules`
 
@@ -417,6 +418,7 @@ export default {
 
 > JavaScript and TypeScript config files are executed while loading config. Only load them from repositories you trust.
 
+JavaScript and TypeScript config files must provide a default export whose value is an object.
 When `configPath` is passed explicitly, extensions `.json`, `.jsonc`, `.ts`, `.mts`, `.cts`, `.js`, `.mjs`, and `.cjs` are supported. Extensionless paths are also accepted and parsed as JSON.
 
 ## `.editorconfig` Support
@@ -445,21 +447,20 @@ Set `loadConfigForIgnorePatterns: false` to skip config loading entirely and kee
 
 Global ignore includes:
 
-- Default ignored directories: `.git`, `.svn`, `.jj`, `node_modules`
-- Default lockfiles: `package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `bun.lockb`
+- Default ignored directories: `.git`, `.jj`, `.sl`, `.svn`, `.hg`, `node_modules`
+- Default lockfiles: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `MODULE.bazel.lock`, `bun.lock`, `deno.lock`, `composer.lock`, `Package.resolved`, `Pipfile.lock`, `flake.lock`, `Cargo.lock`, `Gopkg.lock`, `pdm.lock`, `poetry.lock`, `uv.lock`, `npm-shrinkwrap.json`, `bun.lockb`
 - Ignore files:
-  - If `ignorePath` is provided: use those files only (multiple supported)
-  - If `ignorePath` is not provided:
-    - Read `.gitignore` from the file's directory upward until the git repo boundary
-    - Read `<repo>/.git/info/exclude` when inside a git repo
-    - Read `.prettierignore` from `cwd`
+  - Always read `.gitignore` from the file's directory upward until the git repo boundary
+  - Always read `<repo>/.git/info/exclude` when inside a git repo
+  - If `ignorePath` is provided: read those files instead of `cwd/.prettierignore`
+  - If `ignorePath` is not provided: read `.prettierignore` from `cwd`
 
 Notes:
 
 - `node_modules` can be included by passing `withNodeModules: true`.
 
 - The default lockfile list mirrors oxfmt documentation intent (`package-lock.json`, `pnpm-lock.yaml`, etc.) and common ecosystem lockfiles. It is not guaranteed to be a complete internal oxfmt list.
-- `ignorePatterns` are always interpreted relative to the resolved oxfmt config directory.
+- `ignorePatterns` use gitignore semantics and are interpreted relative to the resolved oxfmt config directory.
 - `includeConfigIgnorePatterns` defaults to `true` to preserve current behavior.
 - `loadConfigForIgnorePatterns` defaults to `true` to preserve current behavior.
 - Nested config behavior follows oxfmt semantics:
@@ -477,7 +478,7 @@ The merged result follows this order:
 3. Overrides generated from `.editorconfig` sections
 4. Overrides declared directly in the oxfmt config file
 
-This means explicit oxfmt config values always win over `.editorconfig` fallback values.
+This means explicit root-level oxfmt config values win over root-level `.editorconfig` fallback values. Section-specific `.editorconfig` entries are represented as generated `overrides` in the static result, and explicit oxfmt `overrides` are appended after them.
 
 ## Limitations
 
@@ -514,6 +515,7 @@ The caching system maintains two separate caches:
 
 - Failed operations automatically clear their cache entries
 - Use `useCache: false` to bypass cache for specific calls
+- For native ESM config files (`.mjs` or `.js` under `"type": "module"`), `useCache: false` cache-busts the entry config file. Imported ESM helper modules still follow Node.js module cache behavior for the current process.
 - Cache persists for the lifetime of the Node.js process
 
 ## Related

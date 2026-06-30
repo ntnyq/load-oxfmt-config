@@ -22,10 +22,14 @@ import type {
 } from './types'
 import { cachePromise } from './utils'
 
-// Cache resolved config paths keyed by cwd + configPath
+/**
+ * Cache resolved config paths keyed by the effective lookup directory and optional config path.
+ */
 const resolveCache = new Map<string, Promise<string | undefined>>()
 
-// Cache parsed config objects keyed by resolvedPath + resolveKey
+/**
+ * Cache parsed and merged config objects keyed by resolved config and EditorConfig paths.
+ */
 const configCache = new Map<string, Promise<OxfmtOptions>>()
 
 export { resolveOxfmtrcPath } from './config-file'
@@ -97,7 +101,7 @@ export async function loadOxfmtConfig(
 
   const loadTask = async () => {
     const oxfmtConfig = resolvedPath
-      ? await readConfigFromFile(resolvedPath).catch(error => {
+      ? await readConfigFromFile(resolvedPath, { useCache }).catch(error => {
           throw new Error(
             `Failed to parse oxfmt configuration file at ${resolvedPath}: ${error instanceof Error ? error.message : String(error)}`,
             {

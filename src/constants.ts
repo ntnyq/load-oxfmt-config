@@ -25,7 +25,14 @@ export const OXFMT_EXPLICIT_CONFIG_EXTENSIONS = [
 /**
  * Default ignored directories used by oxfmt CLI semantics.
  */
-export const DEFAULT_IGNORED_DIRS = ['.git', '.svn', '.jj', 'node_modules']
+export const DEFAULT_IGNORED_DIRS = [
+  '.git',
+  '.jj',
+  '.sl',
+  '.svn',
+  '.hg',
+  'node_modules',
+]
 
 /**
  * Common lockfiles ignored by default.
@@ -35,10 +42,21 @@ export const DEFAULT_IGNORED_DIRS = ['.git', '.svn', '.jj', 'node_modules']
  */
 export const DEFAULT_IGNORED_LOCKFILES = [
   'package-lock.json',
-  'npm-shrinkwrap.json',
   'pnpm-lock.yaml',
   'yarn.lock',
+  'MODULE.bazel.lock',
   'bun.lock',
+  'deno.lock',
+  'composer.lock',
+  'Package.resolved',
+  'Pipfile.lock',
+  'flake.lock',
+  'Cargo.lock',
+  'Gopkg.lock',
+  'pdm.lock',
+  'poetry.lock',
+  'uv.lock',
+  'npm-shrinkwrap.json',
   'bun.lockb',
 ]
 

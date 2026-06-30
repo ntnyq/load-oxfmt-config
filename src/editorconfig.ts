@@ -12,7 +12,7 @@ import type { OxfmtConfigOverride, OxfmtOptions } from './types'
 import { toPosixPath } from './utils'
 
 /**
- * Oxfmt reads these .editorconfig properties
+ * Oxfmt-compatible options derived from supported `.editorconfig` properties.
  *
  * @see https://oxc.rs/docs/guide/usage/formatter/config.html#editorconfig
  */
@@ -26,8 +26,17 @@ export type EditorconfigOptions = Pick<
   | 'useTabs'
 >
 
+/**
+ * Parsed EditorConfig data split into root options and generated override entries.
+ */
 export interface EditorconfigData {
+  /**
+   * Override entries generated from non-global `.editorconfig` sections.
+   */
   overrides: OxfmtConfigOverride[]
+  /**
+   * Root options generated from global `.editorconfig` sections.
+   */
   rootOptions: EditorconfigOptions
 }
 

@@ -10,13 +10,34 @@ import {
 import process from 'node:process'
 import ignore from 'ignore'
 import type { Ignore } from 'ignore'
-import picomatch from 'picomatch'
 import { DEFAULT_IGNORED_DIRS, DEFAULT_IGNORED_LOCKFILES } from './constants'
 import { loadOxfmtConfig } from './core'
 import type { IsOxfmtIgnoredOptions, IsOxfmtIgnoredResult } from './types'
 import { cachePromise, splitPathSegments, toPosixPath } from './utils'
 
+/**
+ * Cache parsed ignore file matchers by ignore file path.
+ */
 const ignoreMatcherCache = new Map<string, Promise<Ignore | undefined>>()
+
+/**
+ * Cache compiled matchers for config-level `ignorePatterns`.
+ */
+const configIgnoreMatcherCache = new Map<string, Ignore>()
+
+/**
+ * Ignore file descriptor with an optional matching base directory override.
+ */
+interface IgnoreFileEntry {
+  /**
+   * Directory used to compute relative paths before matching.
+   */
+  baseDir?: string
+  /**
+   * Absolute path to the ignore file.
+   */
+  path: string
+}
 
 /**
  * Check whether a file is under oxfmt's default ignored directories.
@@ -124,6 +145,46 @@ async function matchIgnoreFile(
 }
 
 /**
+ * Match a file path against ordered ignore files while preserving negation state.
+ *
+ * @param filepath - Absolute file path.
+ * @param ignoreFileEntries - Ignore files in increasing precedence order.
+ * @param useCache - Whether to use matcher cache.
+ * @returns True when the ordered ignore files mark the file as ignored.
+ */
+async function matchIgnoreFileChain(
+  filepath: string,
+  ignoreFileEntries: IgnoreFileEntry[],
+  useCache: boolean,
+) {
+  let ignored = false
+
+  for (const entry of ignoreFileEntries) {
+    const matcher = await loadIgnoreMatcher(entry.path, useCache)
+    if (!matcher) {
+      continue
+    }
+
+    const relativeToIgnore = relativeSafe(
+      entry.baseDir ?? dirname(entry.path),
+      filepath,
+    )
+    if (relativeToIgnore === '..' || relativeToIgnore.startsWith('../')) {
+      continue
+    }
+
+    const result = matcher.test(relativeToIgnore)
+    if (result.ignored) {
+      ignored = true
+    } else if (result.unignored) {
+      ignored = false
+    }
+  }
+
+  return ignored
+}
+
+/**
  * Resolve an ignore file path against cwd when needed.
  *
  * @param path - Absolute or relative path.
@@ -215,34 +276,33 @@ async function collectGitignorePaths(filepath: string) {
  * @param filepath - Absolute file path.
  * @param configDir - Resolved config directory.
  * @param patterns - Config ignore patterns.
+ * @param useCache - Whether to reuse compiled pattern matchers.
  * @returns True when patterns mark the file as ignored.
  */
 function matchConfigIgnorePatterns(
   filepath: string,
   configDir: string,
   patterns: string[],
+  useCache: boolean,
 ) {
   const relativeFile = relativeSafe(configDir, filepath)
-  let ignored = false
-
-  for (const rawPattern of patterns) {
-    if (!rawPattern) {
-      continue
-    }
-
-    const isNegative = rawPattern.startsWith('!')
-    const pattern = isNegative ? rawPattern.slice(1) : rawPattern
-    if (!pattern) {
-      continue
-    }
-
-    const matcher = picomatch(pattern, { dot: true })
-    if (matcher(relativeFile)) {
-      ignored = !isNegative
-    }
+  if (relativeFile === '..' || relativeFile.startsWith('../')) {
+    return false
   }
 
-  return ignored
+  if (!useCache) {
+    return ignore().add(patterns).ignores(relativeFile)
+  }
+
+  const cacheKey = `${configDir}::${JSON.stringify(patterns)}`
+  const cachedMatcher = configIgnoreMatcherCache.get(cacheKey)
+  if (cachedMatcher) {
+    return cachedMatcher.ignores(relativeFile)
+  }
+
+  const matcher = ignore().add(patterns)
+  configIgnoreMatcherCache.set(cacheKey, matcher)
+  return matcher.ignores(relativeFile)
 }
 
 /**
@@ -294,30 +354,28 @@ export async function isOxfmtIgnored(
     resolveIgnoreFilePath(path, cwd),
   )
 
+  const { paths: gitignorePaths, repoRoot } =
+    await collectGitignorePaths(filepath)
+  const gitignoreEntries = [...gitignorePaths].reverse().map(path => ({
+    path,
+  }))
+  if (await matchIgnoreFileChain(filepath, gitignoreEntries, useCache)) {
+    return { ignored: true, reason: 'gitignore' }
+  }
+
+  if (repoRoot) {
+    const infoExcludePath = join(repoRoot, '.git', 'info', 'exclude')
+    if (await matchIgnoreFile(filepath, infoExcludePath, useCache, repoRoot)) {
+      return { ignored: true, reason: 'git-info-exclude' }
+    }
+  }
+
   if (explicitIgnorePaths && explicitIgnorePaths.length > 0) {
-    for (const ignoreFilePath of explicitIgnorePaths) {
-      if (await matchIgnoreFile(filepath, ignoreFilePath, useCache)) {
-        return { ignored: true, reason: 'ignore-path' }
-      }
+    const explicitIgnoreEntries = explicitIgnorePaths.map(path => ({ path }))
+    if (await matchIgnoreFileChain(filepath, explicitIgnoreEntries, useCache)) {
+      return { ignored: true, reason: 'ignore-path' }
     }
   } else {
-    const { paths: gitignorePaths, repoRoot } =
-      await collectGitignorePaths(filepath)
-    for (const ignorePath of gitignorePaths) {
-      if (await matchIgnoreFile(filepath, ignorePath, useCache)) {
-        return { ignored: true, reason: 'gitignore' }
-      }
-    }
-
-    if (repoRoot) {
-      const infoExcludePath = join(repoRoot, '.git', 'info', 'exclude')
-      if (
-        await matchIgnoreFile(filepath, infoExcludePath, useCache, repoRoot)
-      ) {
-        return { ignored: true, reason: 'git-info-exclude' }
-      }
-    }
-
     const prettierignorePath = resolve(cwd, '.prettierignore')
     if (await matchIgnoreFile(filepath, prettierignorePath, useCache)) {
       return { ignored: true, reason: 'prettierignore' }
@@ -348,6 +406,7 @@ export async function isOxfmtIgnored(
       filepath,
       configResult.dirname,
       configResult.config.ignorePatterns,
+      useCache,
     )
   ) {
     return { ignored: true, reason: 'config-ignore-patterns' }

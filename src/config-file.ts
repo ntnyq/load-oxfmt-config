@@ -1,5 +1,7 @@
 import { readFile, stat } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { extname, isAbsolute, join, resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { interopDefault } from '@ntnyq/utils'
 import type { ParseError } from 'jsonc-parser'
 import { parse as parseJSONC, printParseErrorCode } from 'jsonc-parser'
@@ -8,6 +10,243 @@ import {
   OXFMT_EXPLICIT_CONFIG_EXTENSIONS,
 } from './constants'
 import type { OxfmtOptions } from './types'
+
+/**
+ * CommonJS require scoped to this ESM module for loading `.cjs` config files.
+ */
+const require = createRequire(import.meta.url)
+
+/**
+ * Node error codes that mean CommonJS require should fall back to ESM loading.
+ */
+const requireFallbackErrorCodes = new Set([
+  'ERR_REQUIRE_ASYNC_MODULE',
+  'ERR_REQUIRE_ESM',
+])
+
+/**
+ * Syntax errors that indicate module syntax was parsed through CommonJS.
+ */
+const syntaxFallbackMessages = [
+  /Cannot use import statement outside a module/u,
+  /Unexpected token 'export'/u,
+  /Unexpected token 'import'/u,
+]
+
+/**
+ * Check whether an unknown config export is an object accepted by oxfmt.
+ *
+ * @param value - Runtime value to validate.
+ * @returns True when the value can be treated as an oxfmt options object.
+ */
+function isConfigObject(value: unknown): value is OxfmtOptions {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Read the default export from a JavaScript or TypeScript config module.
+ *
+ * @param mod - Imported config module namespace.
+ * @returns Oxfmt config object from the module default export.
+ * @throws When the module has no default export or the default export is not an object.
+ */
+function readConfigDefaultExport(mod: Record<string, unknown>): OxfmtOptions {
+  if (!Object.hasOwn(mod, 'default')) {
+    throw new Error('Configuration file has no default export.')
+  }
+
+  const config = mod['default']
+
+  if (!isConfigObject(config)) {
+    throw new Error(
+      'Configuration file must have a default export that is an object.',
+    )
+  }
+
+  return config
+}
+
+/**
+ * Read a CommonJS module export as an oxfmt config object.
+ *
+ * @param config - Runtime CommonJS export value.
+ * @returns Oxfmt config object from the module export.
+ * @throws When the module export is not an object.
+ */
+function readConfigModuleExports(config: unknown): OxfmtOptions {
+  if (!isConfigObject(config)) {
+    throw new Error('Configuration file must export an object.')
+  }
+
+  return config
+}
+
+/**
+ * Import a JavaScript or TypeScript config module through jiti.
+ *
+ * @param resolvedPath - Absolute config file path to import.
+ * @param useCache - Whether jiti should use its filesystem and module caches.
+ * @returns Imported module namespace.
+ */
+async function importJitiConfigModule(
+  resolvedPath: string,
+  useCache: boolean,
+): Promise<Record<string, unknown>> {
+  const createJiti = await interopDefault(import('jiti'))
+  const jiti = createJiti(
+    import.meta.url,
+    useCache ? undefined : { fsCache: false, moduleCache: false },
+  )
+  return jiti.import<Record<string, unknown>>(resolvedPath)
+}
+
+/**
+ * Build a cache-busting import key from entry file metadata.
+ *
+ * @param resolvedPath - Absolute config file path.
+ * @returns Stable key that changes when the entry file mtime or size changes.
+ */
+async function getFreshImportCacheKey(resolvedPath: string) {
+  const stats = await stat(resolvedPath, { bigint: true })
+  return `${stats.mtimeNs}:${stats.size}`
+}
+
+/**
+ * Read a Node-style `code` field from an unknown thrown value.
+ *
+ * @param error - Thrown value to inspect.
+ * @returns Error code when present.
+ */
+function getErrorCode(error: unknown): string | undefined {
+  return typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+    ? error.code
+    : undefined
+}
+
+/**
+ * Check whether a loader error should continue the JS config fallback chain.
+ *
+ * @param error - Thrown value from require or native import.
+ * @returns True when the error is from loader compatibility, not config execution.
+ */
+function isJavaScriptLoaderFallbackError(error: unknown): boolean {
+  const code = getErrorCode(error)
+  if (code && requireFallbackErrorCodes.has(code)) {
+    return true
+  }
+
+  return (
+    error instanceof SyntaxError &&
+    syntaxFallbackMessages.some(pattern => pattern.test(error.message))
+  )
+}
+
+/**
+ * Import an ESM config module with entry-file cache busting.
+ *
+ * @param resolvedPath - Absolute config file path to import.
+ * @returns Imported module namespace.
+ */
+async function importNativeFreshModule(
+  resolvedPath: string,
+): Promise<Record<string, unknown>> {
+  const url = pathToFileURL(resolvedPath)
+  url.searchParams.set(
+    'oxfmtConfigCacheBust',
+    await getFreshImportCacheKey(resolvedPath),
+  )
+  return import(url.href) as Promise<Record<string, unknown>>
+}
+
+/**
+ * Delete a CommonJS module and all cached children reachable from it.
+ *
+ * @param requirePath - Resolved CommonJS module id.
+ * @param seen - Visited module ids used to avoid cycles.
+ */
+function deleteRequireCacheTree(requirePath: string, seen = new Set<string>()) {
+  if (seen.has(requirePath)) {
+    return
+  }
+
+  seen.add(requirePath)
+
+  const cachedModule = require.cache[requirePath]
+  if (cachedModule) {
+    for (const child of cachedModule.children) {
+      deleteRequireCacheTree(child.id, seen)
+    }
+  }
+
+  Reflect.deleteProperty(require.cache, requirePath)
+}
+
+/**
+ * Require a CommonJS module after removing it from Node's require cache.
+ *
+ * @param resolvedPath - Absolute config file path to require.
+ * @returns Runtime module export value.
+ */
+function requireFreshModule(resolvedPath: string): unknown {
+  const requirePath = require.resolve(resolvedPath)
+  deleteRequireCacheTree(requirePath)
+  // eslint-disable-next-line import/no-dynamic-require -- Config paths are provided at runtime.
+  return require(requirePath)
+}
+
+/**
+ * Load a CommonJS config file without reusing Node's require cache.
+ *
+ * @param resolvedPath - Absolute `.cjs` config file path.
+ * @returns Oxfmt config object from default or module exports.
+ */
+function requireFreshCommonJSConfig(resolvedPath: string): OxfmtOptions {
+  const configModule = requireFreshModule(resolvedPath)
+  if (Object.prototype.toString.call(configModule) === '[object Module]') {
+    return readConfigDefaultExport(configModule as Record<string, unknown>)
+  }
+
+  return readConfigModuleExports(configModule)
+}
+
+/**
+ * Load a JavaScript config file without reusing stale module contents.
+ *
+ * This supports CommonJS, native ESM, and jiti fallback loading so package type
+ * and syntax differences can be handled consistently.
+ *
+ * @param resolvedPath - Absolute `.js` config file path.
+ * @returns Imported module namespace with a default config export.
+ */
+async function importFreshJavaScriptConfigModule(
+  resolvedPath: string,
+): Promise<Record<string, unknown>> {
+  try {
+    const configModule = requireFreshModule(resolvedPath)
+    if (Object.prototype.toString.call(configModule) === '[object Module]') {
+      return importNativeFreshModule(resolvedPath)
+    }
+
+    return { default: readConfigModuleExports(configModule) }
+  } catch (error) {
+    if (!isJavaScriptLoaderFallbackError(error)) {
+      throw error
+    }
+
+    try {
+      return await importNativeFreshModule(resolvedPath)
+    } catch (importError) {
+      if (!isJavaScriptLoaderFallbackError(importError)) {
+        throw importError
+      }
+
+      return importJitiConfigModule(resolvedPath, false)
+    }
+  }
+}
 
 /**
  * Build a cache key for path resolution (cwd + configPath).
@@ -103,12 +342,15 @@ export async function resolveOxfmtrcPath(
  * Read and parse an oxfmt config file.
  *
  * @param resolvedPath - Absolute path to config file.
+ * @param options - Config loading options.
  * @returns Parsed config object.
  */
 export async function readConfigFromFile(
   resolvedPath: string,
+  options: { useCache?: boolean } = {},
 ): Promise<OxfmtOptions> {
   const extension = extname(resolvedPath)
+  const useCache = options.useCache !== false
 
   if (
     extension === '.ts' ||
@@ -118,11 +360,22 @@ export async function readConfigFromFile(
     extension === '.mjs' ||
     extension === '.cjs'
   ) {
-    const createJiti = await interopDefault(import('jiti'))
-    const jiti = createJiti(import.meta.url)
-    const mod = await jiti.import<Record<string, unknown>>(resolvedPath)
-    const config = mod['default'] ?? mod
-    return config as OxfmtOptions
+    if (!useCache && extension === '.cjs') {
+      return requireFreshCommonJSConfig(resolvedPath)
+    }
+
+    if (!useCache && extension === '.mjs') {
+      const mod = await importNativeFreshModule(resolvedPath)
+      return readConfigDefaultExport(mod)
+    }
+
+    if (!useCache && extension === '.js') {
+      const mod = await importFreshJavaScriptConfigModule(resolvedPath)
+      return readConfigDefaultExport(mod)
+    }
+
+    const mod = await importJitiConfigModule(resolvedPath, useCache)
+    return readConfigDefaultExport(mod)
   }
 
   const content = await readFile(resolvedPath, 'utf8')
