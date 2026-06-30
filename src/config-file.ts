@@ -1,7 +1,8 @@
+import { Buffer } from 'node:buffer'
 import { readFile, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { extname, isAbsolute, join, resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { dirname, extname, isAbsolute, join, resolve } from 'node:path'
+import { URL, fileURLToPath, pathToFileURL } from 'node:url'
 import { interopDefault } from '@ntnyq/utils'
 import type { ParseError } from 'jsonc-parser'
 import { parse as parseJSONC, printParseErrorCode } from 'jsonc-parser'
@@ -15,6 +16,29 @@ import type { OxfmtOptions } from './types'
  * CommonJS require scoped to this ESM module for loading `.cjs` config files.
  */
 const require = createRequire(import.meta.url)
+
+/**
+ * Match relative static imports, re-exports, and dynamic imports in config ESM.
+ */
+const relativeImportPattern =
+  /\b(?:(?:import|export)\s+(?:[^'"]*?\s+from\s+)?|import\s*\(\s*)(?<quote>['"])(?<specifier>\.{1,2}\/[^'"]+)\k<quote>/gsu
+
+/**
+ * Node error codes that mean CommonJS require should fall back to ESM loading.
+ */
+const requireFallbackErrorCodes = new Set([
+  'ERR_REQUIRE_ASYNC_MODULE',
+  'ERR_REQUIRE_ESM',
+])
+
+/**
+ * Syntax errors that indicate module syntax was parsed through CommonJS.
+ */
+const syntaxFallbackMessages = [
+  /Cannot use import statement outside a module/u,
+  /Unexpected token 'export'/u,
+  /Unexpected token 'import'/u,
+]
 
 /**
  * Check whether an unknown config export is an object accepted by oxfmt.
@@ -84,18 +108,107 @@ async function importJitiConfigModule(
 }
 
 /**
- * Build a cache-busting import key from file metadata.
+ * Read a Node-style `code` field from an unknown thrown value.
  *
- * @param resolvedPath - Absolute config file path.
- * @returns Stable key that changes when file mtime or size changes.
+ * @param error - Thrown value to inspect.
+ * @returns Error code when present.
  */
-async function getFreshImportCacheKey(resolvedPath: string) {
-  const stats = await stat(resolvedPath, { bigint: true })
-  return `${stats.mtimeNs}:${stats.size}`
+function getErrorCode(error: unknown): string | undefined {
+  return typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    typeof error.code === 'string'
+    ? error.code
+    : undefined
 }
 
 /**
- * Import an ESM config module with a metadata-based cache-busting query.
+ * Check whether a loader error should continue the JS config fallback chain.
+ *
+ * @param error - Thrown value from require or native import.
+ * @returns True when the error is from loader compatibility, not config execution.
+ */
+function isJavaScriptLoaderFallbackError(error: unknown): boolean {
+  const code = getErrorCode(error)
+  if (code && requireFallbackErrorCodes.has(code)) {
+    return true
+  }
+
+  return (
+    error instanceof SyntaxError &&
+    syntaxFallbackMessages.some(pattern => pattern.test(error.message))
+  )
+}
+
+/**
+ * Rewrite `import.meta` file path helpers for source loaded through data URLs.
+ *
+ * @param source - ESM source text.
+ * @param resolvedPath - Absolute source file path.
+ * @returns Source with file-based import metadata inlined.
+ */
+function replaceImportMetaPaths(source: string, resolvedPath: string): string {
+  const fileUrl = pathToFileURL(resolvedPath).href
+  return source
+    .replaceAll('import.meta.dirname', JSON.stringify(dirname(resolvedPath)))
+    .replaceAll('import.meta.filename', JSON.stringify(resolvedPath))
+    .replaceAll('import.meta.url', JSON.stringify(fileUrl))
+}
+
+/**
+ * Create a data URL for fresh native ESM loading, recursively rewriting
+ * relative imports so helper modules also bypass Node's ESM cache.
+ *
+ * @param resolvedPath - Absolute module path to read.
+ * @param seen - In-flight module URL map used to avoid cycles.
+ * @returns Data URL for the rewritten module source.
+ */
+function getFreshImportUrl(
+  resolvedPath: string,
+  seen = new Map<string, Promise<string>>(),
+): Promise<string> {
+  const pending = seen.get(resolvedPath)
+  if (pending) {
+    return pending
+  }
+
+  const task = (async () => {
+    const source = replaceImportMetaPaths(
+      await readFile(resolvedPath, 'utf8'),
+      resolvedPath,
+    )
+    let rewritten = ''
+    let lastIndex = 0
+
+    for (const match of source.matchAll(relativeImportPattern)) {
+      const [matched] = match
+      const { quote, specifier } = match.groups ?? {}
+      if (!quote || !specifier || match.index === undefined) {
+        continue
+      }
+
+      const prefix = matched.slice(0, -quote.length - specifier.length - 1)
+      const dependencyPath = fileURLToPath(
+        new URL(specifier, pathToFileURL(resolvedPath)),
+      )
+      const dependencyUrl = await getFreshImportUrl(dependencyPath, seen)
+
+      rewritten += source.slice(lastIndex, match.index)
+      rewritten += `${prefix}${quote}${dependencyUrl}${quote}`
+      lastIndex = match.index + matched.length
+    }
+
+    rewritten += source.slice(lastIndex)
+
+    return `data:text/javascript;base64,${Buffer.from(rewritten).toString('base64')}`
+  })()
+
+  seen.set(resolvedPath, task)
+  return task
+}
+
+/**
+ * Import an ESM config module with rewritten relative imports.
  *
  * @param resolvedPath - Absolute config file path to import.
  * @returns Imported module namespace.
@@ -103,12 +216,31 @@ async function getFreshImportCacheKey(resolvedPath: string) {
 async function importNativeFreshModule(
   resolvedPath: string,
 ): Promise<Record<string, unknown>> {
-  const url = pathToFileURL(resolvedPath)
-  url.searchParams.set(
-    'oxfmtConfigCacheBust',
-    await getFreshImportCacheKey(resolvedPath),
-  )
-  return import(url.href) as Promise<Record<string, unknown>>
+  const url = await getFreshImportUrl(resolvedPath)
+  return import(url) as Promise<Record<string, unknown>>
+}
+
+/**
+ * Delete a CommonJS module and all cached children reachable from it.
+ *
+ * @param requirePath - Resolved CommonJS module id.
+ * @param seen - Visited module ids used to avoid cycles.
+ */
+function deleteRequireCacheTree(requirePath: string, seen = new Set<string>()) {
+  if (seen.has(requirePath)) {
+    return
+  }
+
+  seen.add(requirePath)
+
+  const cachedModule = require.cache[requirePath]
+  if (cachedModule) {
+    for (const child of cachedModule.children) {
+      deleteRequireCacheTree(child.id, seen)
+    }
+  }
+
+  Reflect.deleteProperty(require.cache, requirePath)
 }
 
 /**
@@ -119,7 +251,7 @@ async function importNativeFreshModule(
  */
 function requireFreshModule(resolvedPath: string): unknown {
   const requirePath = require.resolve(resolvedPath)
-  Reflect.deleteProperty(require.cache, requirePath)
+  deleteRequireCacheTree(requirePath)
   // eslint-disable-next-line import/no-dynamic-require -- Config paths are provided at runtime.
   return require(requirePath)
 }
@@ -158,10 +290,18 @@ async function importFreshJavaScriptConfigModule(
     }
 
     return { default: readConfigModuleExports(configModule) }
-  } catch {
+  } catch (error) {
+    if (!isJavaScriptLoaderFallbackError(error)) {
+      throw error
+    }
+
     try {
       return await importNativeFreshModule(resolvedPath)
-    } catch {
+    } catch (importError) {
+      if (!isJavaScriptLoaderFallbackError(importError)) {
+        throw importError
+      }
+
       return importJitiConfigModule(resolvedPath, false)
     }
   }
