@@ -2,7 +2,14 @@ import { readFile, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { extname, isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { interopDefault } from '@ntnyq/utils'
+import {
+  interopDefault,
+  isUndefined,
+  isString,
+  isObject,
+  isRecord,
+  hasOwn,
+} from '@ntnyq/utils'
 import type { ParseError } from 'jsonc-parser'
 import { parse as parseJSONC, printParseErrorCode } from 'jsonc-parser'
 import {
@@ -40,7 +47,22 @@ const syntaxFallbackMessages = [
  * @returns True when the value can be treated as an oxfmt options object.
  */
 function isConfigObject(value: unknown): value is OxfmtOptions {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+  return isRecord(value)
+}
+
+/**
+ * Read a parsed JSON-like config value as an oxfmt config object.
+ *
+ * @param config - Runtime config value.
+ * @returns Oxfmt config object.
+ * @throws When the config value is not an object.
+ */
+function readParsedConfigObject(config: unknown): OxfmtOptions {
+  if (!isConfigObject(config)) {
+    throw new Error('Configuration file must be an object.')
+  }
+
+  return config
 }
 
 /**
@@ -51,7 +73,7 @@ function isConfigObject(value: unknown): value is OxfmtOptions {
  * @throws When the module has no default export or the default export is not an object.
  */
 function readConfigDefaultExport(mod: Record<string, unknown>): OxfmtOptions {
-  if (!Object.hasOwn(mod, 'default')) {
+  if (!hasOwn(mod, 'default')) {
     throw new Error('Configuration file has no default export.')
   }
 
@@ -118,10 +140,7 @@ async function getFreshImportCacheKey(resolvedPath: string) {
  * @returns Error code when present.
  */
 function getErrorCode(error: unknown): string | undefined {
-  return typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    typeof error.code === 'string'
+  return isObject(error) && 'code' in error && isString(error.code)
     ? error.code
     : undefined
 }
@@ -388,22 +407,22 @@ export async function readConfigFromFile(
     })
     if (parseErrors.length > 0) {
       const firstError = parseErrors[0]
-      const errorCode =
-        firstError === undefined
-          ? 'Unknown'
-          : printParseErrorCode(firstError.error)
+      const errorCode = isUndefined(firstError)
+        ? 'Unknown'
+        : printParseErrorCode(firstError.error)
       throw new Error(`Invalid JSONC syntax: ${errorCode}`)
     }
 
-    return (parsed ?? {}) as OxfmtOptions
+    const config = isUndefined(parsed) && content.trim() === '' ? {} : parsed
+    return readParsedConfigObject(config)
   }
 
   if (extension === '.json') {
-    return JSON.parse(content) as OxfmtOptions
+    return readParsedConfigObject(JSON.parse(content))
   }
 
   if (!extension) {
-    return JSON.parse(content) as OxfmtOptions
+    return readParsedConfigObject(JSON.parse(content))
   }
 
   if (!OXFMT_EXPLICIT_CONFIG_EXTENSIONS.includes(extension)) {
@@ -412,5 +431,5 @@ export async function readConfigFromFile(
     )
   }
 
-  return JSON.parse(content) as OxfmtOptions
+  return readParsedConfigObject(JSON.parse(content))
 }

@@ -294,6 +294,34 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
+  it('reads git info exclude from gitdir when .git is a file', async () => {
+    await withTempDir('oxfmt-ignore-git-file-info-exclude-', async cwd => {
+      const repoRoot = join(cwd, 'repo')
+      const gitDir = join(cwd, 'gitdirs', 'repo.git')
+      const filepath = join(repoRoot, 'src', 'excluded.ts')
+
+      await mkdir(join(gitDir, 'info'), { recursive: true })
+      await mkdir(join(repoRoot, 'src'), { recursive: true })
+      await writeFile(join(repoRoot, '.git'), `gitdir: ${gitDir}\n`, 'utf8')
+      await writeFile(
+        join(gitDir, 'info', 'exclude'),
+        'src/excluded.ts\n',
+        'utf8',
+      )
+      await writeFile(filepath, 'export const excluded = true\n', 'utf8')
+
+      const result = await isOxfmtIgnored({
+        cwd: repoRoot,
+        filepath,
+      })
+
+      expect(result).toStrictEqual({
+        ignored: true,
+        reason: 'git-info-exclude',
+      })
+    })
+  })
+
   it('stops default .gitignore lookup at repo boundary', async () => {
     await withTempDir('oxfmt-ignore-repo-boundary-', async cwd => {
       const outsideIgnore = join(cwd, '.gitignore')

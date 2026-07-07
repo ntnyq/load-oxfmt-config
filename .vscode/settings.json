@@ -13,6 +13,7 @@
     "changelogithub",
     "codecov",
     "esbuild",
+    "gitdirs",
     "Gopkg",
     "lcov",
     "oxfmt",

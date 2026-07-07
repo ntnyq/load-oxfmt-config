@@ -218,6 +218,51 @@ async function hasGitEntry(dir: string) {
 }
 
 /**
+ * Resolve the git info exclude file from a repo root.
+ *
+ * Worktrees and submodules store `.git` as a file containing a `gitdir:` pointer.
+ *
+ * @param repoRoot - Git repository working tree root.
+ * @returns Absolute path to the git info exclude file, or undefined when unavailable.
+ */
+async function resolveGitInfoExcludePath(repoRoot: string) {
+  const gitEntryPath = join(repoRoot, '.git')
+
+  try {
+    const stats = await stat(gitEntryPath)
+    if (stats.isDirectory()) {
+      return join(gitEntryPath, 'info', 'exclude')
+    }
+
+    if (!stats.isFile()) {
+      return undefined
+    }
+
+    const gitEntryContent = await readFile(gitEntryPath, 'utf8')
+    const gitdirLine = gitEntryContent
+      .split(/\r?\n/u)
+      .find(line => line.startsWith('gitdir:'))
+    const gitdir = gitdirLine?.slice('gitdir:'.length).trim()
+
+    if (!gitdir) {
+      return undefined
+    }
+
+    const resolvedGitDir = isAbsolute(gitdir)
+      ? gitdir
+      : resolve(repoRoot, gitdir)
+    return join(resolvedGitDir, 'info', 'exclude')
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      return undefined
+    }
+
+    throw error
+  }
+}
+
+/**
  * Find the nearest git repo root by walking up from a start directory.
  *
  * @param fromDir - Directory to start from.
@@ -364,8 +409,11 @@ export async function isOxfmtIgnored(
   }
 
   if (repoRoot) {
-    const infoExcludePath = join(repoRoot, '.git', 'info', 'exclude')
-    if (await matchIgnoreFile(filepath, infoExcludePath, useCache, repoRoot)) {
+    const infoExcludePath = await resolveGitInfoExcludePath(repoRoot)
+    if (
+      infoExcludePath &&
+      (await matchIgnoreFile(filepath, infoExcludePath, useCache, repoRoot))
+    ) {
       return { ignored: true, reason: 'git-info-exclude' }
     }
   }

@@ -6,7 +6,7 @@ import {
   getResolveCacheKey,
   readConfigFromFile,
   resolveOxfmtrcPath,
-} from './config-file'
+} from './config'
 import {
   getEditorconfigResolveCacheKey,
   getEditorconfigSearchDir,
@@ -31,8 +31,6 @@ const resolveCache = new Map<string, Promise<string | undefined>>()
  * Cache parsed and merged config objects keyed by resolved config and EditorConfig paths.
  */
 const configCache = new Map<string, Promise<OxfmtOptions>>()
-
-export { resolveOxfmtrcPath } from './config-file'
 
 /**
  * Resolve config + editorconfig and return merged config with metadata.

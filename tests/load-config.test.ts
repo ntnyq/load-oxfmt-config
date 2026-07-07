@@ -41,6 +41,28 @@ describe(loadOxfmtConfig, () => {
       )
     })
 
+    it.each([
+      ['JSON', 'custom.config.json', '[]'],
+      ['JSONC', 'custom.config.jsonc', 'null'],
+    ])(
+      'throws when explicit %s config is not an object',
+      async (_format, filename, content) => {
+        await withTempDir('oxfmt-config-non-object-', async cwd => {
+          const configPath = join(cwd, filename)
+          await writeFile(configPath, content, 'utf8')
+
+          await expect(
+            loadOxfmtConfig({
+              cwd,
+              configPath,
+              editorconfig: false,
+              useCache: false,
+            }),
+          ).rejects.toThrow(/Configuration file must be an object/u)
+        })
+      },
+    )
+
     it('loads config using absolute configPath', async () => {
       const cwd = fixturePath('load', 'absolute')
       const absoluteConfig = join(cwd, '.oxfmtrc.json')
