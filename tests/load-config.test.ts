@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadOxfmtConfig } from '../src'
@@ -313,6 +314,47 @@ describe(loadOxfmtConfig, () => {
       })
     })
 
+    it('evaluates ESM .js config once when useCache is false', async () => {
+      await withTempDir('oxfmt-config-js-esm-single-evaluation-', async cwd => {
+        const globals = globalThis as typeof globalThis & {
+          loadOxfmtConfigJsImportCount?: number
+        }
+        const configPath = join(cwd, 'oxfmt.config.js')
+
+        globals.loadOxfmtConfigJsImportCount = 0
+
+        try {
+          await writeFile(
+            join(cwd, 'package.json'),
+            '{"type":"module"}\n',
+            'utf8',
+          )
+          await writeFile(
+            configPath,
+            [
+              'globalThis.loadOxfmtConfigJsImportCount =',
+              '  (globalThis.loadOxfmtConfigJsImportCount ?? 0) + 1',
+              'export default { printWidth: globalThis.loadOxfmtConfigJsImportCount }',
+              '',
+            ].join('\n'),
+            'utf8',
+          )
+
+          const result = await loadOxfmtConfig({
+            cwd,
+            configPath,
+            editorconfig: false,
+            useCache: false,
+          })
+
+          expect(result.config.printWidth).toBe(1)
+          expect(globals.loadOxfmtConfigJsImportCount).toBe(1)
+        } finally {
+          delete globals.loadOxfmtConfigJsImportCount
+        }
+      })
+    })
+
     it('loads native ESM config with bare package imports when useCache is false', async () => {
       await withTempDir('oxfmt-config-esm-bare-import-', async cwd => {
         const configPath = join(cwd, 'oxfmt.config.mjs')
@@ -364,6 +406,53 @@ describe(loadOxfmtConfig, () => {
 
         expect(first.config.printWidth).toBe(81)
         expect(second.config.printWidth).toBe(82)
+      })
+    })
+
+    it('preserves third-party CommonJS modules when useCache is false', async () => {
+      await withTempDir('oxfmt-config-cjs-dependency-cache-', async cwd => {
+        const dependencyDir = join(cwd, 'node_modules', 'shared-package')
+        const dependencyPath = join(dependencyDir, 'index.cjs')
+        const configPath = join(cwd, 'oxfmt.config.cjs')
+        const requireFromCwd = createRequire(join(cwd, 'consumer.cjs'))
+
+        await mkdir(dependencyDir, { recursive: true })
+        await writeFile(
+          join(dependencyDir, 'package.json'),
+          JSON.stringify({ main: 'index.cjs', name: 'shared-package' }),
+          'utf8',
+        )
+        await writeFile(
+          dependencyPath,
+          'module.exports = { printWidth: 86 }\n',
+          'utf8',
+        )
+        await writeFile(
+          configPath,
+          "module.exports = require('shared-package')\n",
+          'utf8',
+        )
+
+        const dependency = requireFromCwd('shared-package')
+
+        try {
+          await loadOxfmtConfig({
+            cwd,
+            configPath,
+            editorconfig: false,
+            useCache: false,
+          })
+          await loadOxfmtConfig({
+            cwd,
+            configPath,
+            editorconfig: false,
+            useCache: false,
+          })
+
+          expect(requireFromCwd('shared-package')).toBe(dependency)
+        } finally {
+          Reflect.deleteProperty(requireFromCwd.cache, dependencyPath)
+        }
       })
     })
 

@@ -17,6 +17,7 @@ import {
   OXFMT_EXPLICIT_CONFIG_EXTENSIONS,
 } from './constants'
 import type { OxfmtOptions } from './types'
+import { splitPathSegments } from './utils'
 
 /**
  * CommonJS require scoped to this ESM module for loading `.cjs` config files.
@@ -39,6 +40,19 @@ const syntaxFallbackMessages = [
   /Unexpected token 'export'/u,
   /Unexpected token 'import'/u,
 ]
+
+/**
+ * ESM namespaces loaded from `.js` config files while bypassing normal caches.
+ *
+ * Node can load synchronous ESM through `require()`, but deleting
+ * `require.cache` does not invalidate the ESM loader cache. Remember the entry
+ * file version so changed configs can switch to a cache-busted native import
+ * without evaluating the first load twice.
+ */
+const freshJavaScriptModuleCache = new Map<
+  string,
+  { cacheKey: string; namespace: Record<string, unknown> }
+>()
 
 /**
  * Check whether an unknown config export is an object accepted by oxfmt.
@@ -196,7 +210,9 @@ function deleteRequireCacheTree(requirePath: string, seen = new Set<string>()) {
   const cachedModule = require.cache[requirePath]
   if (cachedModule) {
     for (const child of cachedModule.children) {
-      deleteRequireCacheTree(child.id, seen)
+      if (!splitPathSegments(child.id).includes('node_modules')) {
+        deleteRequireCacheTree(child.id, seen)
+      }
     }
   }
 
@@ -243,10 +259,24 @@ function requireFreshCommonJSConfig(resolvedPath: string): OxfmtOptions {
 async function importFreshJavaScriptConfigModule(
   resolvedPath: string,
 ): Promise<Record<string, unknown>> {
+  const cacheKey = await getFreshImportCacheKey(resolvedPath)
+  const cachedModule = freshJavaScriptModuleCache.get(resolvedPath)
+  if (cachedModule?.cacheKey === cacheKey) {
+    return cachedModule.namespace
+  }
+
+  if (cachedModule) {
+    const namespace = await importNativeFreshModule(resolvedPath)
+    freshJavaScriptModuleCache.set(resolvedPath, { cacheKey, namespace })
+    return namespace
+  }
+
   try {
     const configModule = requireFreshModule(resolvedPath)
     if (Object.prototype.toString.call(configModule) === '[object Module]') {
-      return importNativeFreshModule(resolvedPath)
+      const namespace = configModule as Record<string, unknown>
+      freshJavaScriptModuleCache.set(resolvedPath, { cacheKey, namespace })
+      return namespace
     }
 
     return { default: readConfigModuleExports(configModule) }
@@ -256,7 +286,9 @@ async function importFreshJavaScriptConfigModule(
     }
 
     try {
-      return await importNativeFreshModule(resolvedPath)
+      const namespace = await importNativeFreshModule(resolvedPath)
+      freshJavaScriptModuleCache.set(resolvedPath, { cacheKey, namespace })
+      return namespace
     } catch (importError) {
       if (!isJavaScriptLoaderFallbackError(importError)) {
         throw importError
