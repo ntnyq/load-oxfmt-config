@@ -10,7 +10,7 @@
 ## Features
 
 - 🔍 **Auto-discovery** - Automatically searches for config files in current and parent directories
-- 📦 **Multiple formats** - Auto-discovers `.oxfmtrc.json`, `.oxfmtrc.jsonc`, and `oxfmt.config.ts`, and also supports explicit `.json` / `.jsonc` / `.js` / `.mjs` / `.cjs` / `.ts` / `.mts` / `.cts` config paths
+- 📦 **Multiple formats** - Auto-discovers `.oxfmtrc.json`, `.oxfmtrc.jsonc`, `oxfmt.config.ts`, and `oxfmt.config.mts`, and also supports explicit `.json` / `.jsonc` / `.js` / `.mjs` / `.cjs` / `.ts` / `.mts` / `.cts` config paths
 - 🧩 **EditorConfig fallback** - Merges supported `.editorconfig` fields into the returned oxfmt config result
 - 🚫 **Ignore resolution** - Resolves ignore status with oxfmt CLI-like global + config-scoped semantics
 - ⚡ **Built-in caching** - Caches both file resolution and parsed configs for optimal performance
@@ -371,6 +371,7 @@ When `configPath` is not provided, the loader automatically searches for config 
    - `.oxfmtrc.json`
    - `.oxfmtrc.jsonc`
    - `oxfmt.config.ts`
+   - `oxfmt.config.mts`
 3. **Stops when:**
    - A valid config file is found
    - Reaches the filesystem root
@@ -408,7 +409,7 @@ JSON with comments support:
 }
 ```
 
-### TypeScript (`oxfmt.config.ts`)
+### TypeScript (`oxfmt.config.ts` / `oxfmt.config.mts`)
 
 ```ts
 export default {
@@ -461,7 +462,7 @@ Notes:
 - `node_modules` can be included by passing `withNodeModules: true`.
 
 - The default lockfile list mirrors oxfmt documentation intent (`package-lock.json`, `pnpm-lock.yaml`, etc.) and common ecosystem lockfiles. It is not guaranteed to be a complete internal oxfmt list.
-- `ignorePatterns` use gitignore semantics and are interpreted relative to the resolved oxfmt config directory.
+- `ignorePatterns` use gitignore semantics and are interpreted relative to the resolved oxfmt config directory. Parent-directory (`..`) path segments are rejected because patterns cannot match files outside that directory.
 - `includeConfigIgnorePatterns` defaults to `true` to preserve current behavior.
 - `loadConfigForIgnorePatterns` defaults to `true` to preserve current behavior.
 - Nested config behavior follows oxfmt semantics:
@@ -475,7 +476,7 @@ Notes:
 The merged result follows oxfmt's fallback semantics:
 
 1. Root and section-specific `.editorconfig` values provide defaults for unset fields
-2. Root-level values from `.oxfmtrc.json`, `.oxfmtrc.jsonc`, or `oxfmt.config.ts` take precedence over all `.editorconfig` values
+2. Root-level values from `.oxfmtrc.json`, `.oxfmtrc.jsonc`, `oxfmt.config.ts`, or `oxfmt.config.mts` take precedence over all `.editorconfig` values
 3. Overrides declared directly in the oxfmt config file have the highest priority
 
 Section-specific `.editorconfig` entries are represented as generated `overrides` in the static result. Fields already defined at the oxfmt config root are omitted from those generated overrides, and explicit oxfmt `overrides` are appended after them.

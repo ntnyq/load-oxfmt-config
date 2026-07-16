@@ -521,6 +521,28 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
+  it.each(['../src/**', '!../src/**', 'src/../dist/**', '.. '])(
+    'rejects parent-directory config ignore pattern %s',
+    async pattern => {
+      await withTempDir('oxfmt-ignore-config-parent-pattern-', async cwd => {
+        const filepath = join(cwd, 'src', 'a.ts')
+        await mkdir(join(cwd, 'src'), { recursive: true })
+        await writeFile(filepath, 'export const a = 1\n', 'utf8')
+        await writeFile(
+          join(cwd, '.oxfmtrc.json'),
+          JSON.stringify({ ignorePatterns: [pattern] }),
+          'utf8',
+        )
+
+        await expect(
+          isOxfmtIgnored({ cwd, filepath, useCache: false }),
+        ).rejects.toThrow(
+          /Invalid pattern .* in `ignorePatterns`: `\.\.` is not supported/u,
+        )
+      })
+    },
+  )
+
   it('can disable config ignorePatterns via includeConfigIgnorePatterns=false', async () => {
     await withTempDir('oxfmt-ignore-config-toggle-', async cwd => {
       const filepath = join(cwd, 'generated', 'a.ts')

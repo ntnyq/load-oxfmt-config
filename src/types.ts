@@ -90,7 +90,8 @@ export interface OxfmtOptions extends FormatConfig {
   /**
    * Ignore files matching these glob patterns.
    *
-   * Patterns are based on the location of the oxfmt configuration file.
+   * Patterns use gitignore-style matching rooted at the oxfmt configuration
+   * directory. Parent-directory (`..`) path segments are rejected.
    */
   ignorePatterns?: string[]
   /**

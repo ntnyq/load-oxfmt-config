@@ -351,6 +351,27 @@ async function collectGitignorePaths(filepath: string) {
 }
 
 /**
+ * Validate config ignore patterns using oxfmt's path constraints.
+ *
+ * @param patterns - Config ignore patterns.
+ * @throws When a pattern contains a parent-directory path segment.
+ */
+function validateConfigIgnorePatterns(patterns: string[]) {
+  for (const pattern of patterns) {
+    const pathPart = pattern.startsWith('!') ? pattern.slice(1) : pattern
+    const normalizedPathPart = pathPart.endsWith(String.raw`\ `)
+      ? pathPart
+      : pathPart.trimEnd()
+
+    if (normalizedPathPart.split('/').includes('..')) {
+      throw new Error(
+        `Invalid pattern \`${pattern}\` in \`ignorePatterns\`: \`..\` is not supported, patterns are resolved within the config file's directory`,
+      )
+    }
+  }
+}
+
+/**
  * Match `ignorePatterns` from config with support for negated patterns.
  *
  * @param filepath - Absolute file path.
@@ -365,6 +386,8 @@ function matchConfigIgnorePatterns(
   patterns: string[],
   useCache: boolean,
 ) {
+  validateConfigIgnorePatterns(patterns)
+
   const relativeFile = relativeSafe(configDir, filepath)
   if (relativeFile === '..' || relativeFile.startsWith('../')) {
     return false

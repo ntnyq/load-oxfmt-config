@@ -6,6 +6,7 @@ export const OXFMT_CONFIG_FILES = [
   '.oxfmtrc.json',
   '.oxfmtrc.jsonc',
   'oxfmt.config.ts',
+  'oxfmt.config.mts',
 ]
 
 /**

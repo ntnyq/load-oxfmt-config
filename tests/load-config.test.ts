@@ -143,6 +143,26 @@ describe(loadOxfmtConfig, () => {
       expect(result.config.tabWidth).toBe(2)
     })
 
+    it('auto-discovers oxfmt.config.mts', async () => {
+      await withTempDir('oxfmt-config-auto-discover-mts-', async cwd => {
+        const configPath = join(cwd, 'oxfmt.config.mts')
+        await writeFile(
+          configPath,
+          'export default { printWidth: 92 }\n',
+          'utf8',
+        )
+
+        const result = await loadOxfmtConfig({
+          cwd,
+          editorconfig: false,
+          useCache: false,
+        })
+
+        expect(result.config.printWidth).toBe(92)
+        expect(result.filepath).toBe(configPath)
+      })
+    })
+
     it('resolves nested config from filepath directory by default', async () => {
       await withTempDir('oxfmt-config-by-filepath-', async cwd => {
         const nestedDir = join(cwd, 'packages', 'app', 'src')
