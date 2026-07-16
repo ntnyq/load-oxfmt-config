@@ -88,15 +88,29 @@ export function mergeRootOptions(
 /**
  * Merges EditorConfig-derived overrides with explicit oxfmt overrides.
  *
- * @param oxfmtOverrides - Overrides declared in the oxfmt config.
+ * @param oxfmtConfig - Explicit root options and overrides from the oxfmt config.
  * @param editorconfigOverrides - Overrides derived from .editorconfig sections.
  * @returns The merged overrides array, or undefined when no overrides exist.
  */
 export function mergeOverrides(
-  oxfmtOverrides: OxfmtConfigOverride[] | undefined,
+  oxfmtConfig: OxfmtOptions,
   editorconfigOverrides: OxfmtConfigOverride[],
 ) {
-  const mergedOverrides = [...editorconfigOverrides, ...(oxfmtOverrides || [])]
+  const editorconfigFallbackOverrides = editorconfigOverrides.flatMap(
+    override => {
+      const options = Object.fromEntries(
+        Object.entries(override.options || {}).filter(
+          ([name]) => !Object.hasOwn(oxfmtConfig, name),
+        ),
+      )
+
+      return Object.keys(options).length > 0 ? [{ ...override, options }] : []
+    },
+  )
+  const mergedOverrides = [
+    ...editorconfigFallbackOverrides,
+    ...(oxfmtConfig.overrides || []),
+  ]
   return mergedOverrides.length > 0 ? mergedOverrides : undefined
 }
 

@@ -123,7 +123,7 @@ export async function loadOxfmtConfig(
       editorconfigData.rootOptions,
     )
     const mergedOverrides = mergeOverrides(
-      oxfmtConfig.overrides,
+      oxfmtConfig,
       editorconfigData.overrides,
     )
 

@@ -755,6 +755,39 @@ describe(loadOxfmtConfig, () => {
       expect(result.config.tabWidth).toBeUndefined()
     })
 
+    it('keeps .editorconfig override fields as fallbacks to root config', async () => {
+      await withTempDir('oxfmt-config-editor-override-fallback-', async cwd => {
+        await writeFile(
+          join(cwd, '.oxfmtrc.json'),
+          JSON.stringify({ printWidth: 120 }),
+          'utf8',
+        )
+        await writeFile(
+          join(cwd, '.editorconfig'),
+          [
+            '[*.ts]',
+            'indent_style = space',
+            'indent_size = 4',
+            'max_line_length = 80',
+            '',
+          ].join('\n'),
+          'utf8',
+        )
+
+        const result = await loadOxfmtConfig({ cwd, useCache: false })
+
+        expect(result.config).toStrictEqual({
+          printWidth: 120,
+          overrides: [
+            {
+              files: ['*.ts'],
+              options: { tabWidth: 4, useTabs: false },
+            },
+          ],
+        })
+      })
+    })
+
     it('converts .editorconfig sections into low-priority overrides', async () => {
       const cwd = fixturePath('load', 'editor-overrides')
 

@@ -471,14 +471,13 @@ Notes:
 
 ## Precedence
 
-The merged result follows this order:
+The merged result follows oxfmt's fallback semantics:
 
-1. Root-level values from the nearest `.editorconfig`
-2. Root-level values from `.oxfmtrc.json`, `.oxfmtrc.jsonc`, or `oxfmt.config.ts`
-3. Overrides generated from `.editorconfig` sections
-4. Overrides declared directly in the oxfmt config file
+1. Root and section-specific `.editorconfig` values provide defaults for unset fields
+2. Root-level values from `.oxfmtrc.json`, `.oxfmtrc.jsonc`, or `oxfmt.config.ts` take precedence over all `.editorconfig` values
+3. Overrides declared directly in the oxfmt config file have the highest priority
 
-This means explicit root-level oxfmt config values win over root-level `.editorconfig` fallback values. Section-specific `.editorconfig` entries are represented as generated `overrides` in the static result, and explicit oxfmt `overrides` are appended after them.
+Section-specific `.editorconfig` entries are represented as generated `overrides` in the static result. Fields already defined at the oxfmt config root are omitted from those generated overrides, and explicit oxfmt `overrides` are appended after them.
 
 ## Limitations
 
