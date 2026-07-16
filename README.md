@@ -32,6 +32,7 @@ pnpm add load-oxfmt-config
 ```
 
 > `oxfmt` is a peer dependency and should be installed alongside this package.
+> Node.js `^22.13.0 || >=24` is supported.
 
 ## Usage
 

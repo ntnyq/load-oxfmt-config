@@ -1,1 +1,6 @@
+overrides:
+  tar: 7.5.16
+
+packageManagerStrict: false
+ignoreWorkspaceRootCheck: true
 minimumReleaseAge: 0
