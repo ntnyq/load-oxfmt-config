@@ -40,6 +40,20 @@ interface IgnoreFileEntry {
 }
 
 /**
+ * Match state from an ordered ignore file chain.
+ */
+interface IgnoreFileChainResult {
+  /**
+   * Final ignore state after applying all matching rules.
+   */
+  ignored: boolean
+  /**
+   * Whether any ignore or negation rule matched the file.
+   */
+  matched: boolean
+}
+
+/**
  * Check whether a file is under oxfmt's default ignored directories.
  *
  * @param filepath - Absolute file path to test.
@@ -156,8 +170,9 @@ async function matchIgnoreFileChain(
   filepath: string,
   ignoreFileEntries: IgnoreFileEntry[],
   useCache: boolean,
-) {
+): Promise<IgnoreFileChainResult> {
   let ignored = false
+  let matched = false
 
   for (const entry of ignoreFileEntries) {
     const matcher = await loadIgnoreMatcher(entry.path, useCache)
@@ -176,12 +191,14 @@ async function matchIgnoreFileChain(
     const result = matcher.test(relativeToIgnore)
     if (result.ignored) {
       ignored = true
+      matched = true
     } else if (result.unignored) {
       ignored = false
+      matched = true
     }
   }
 
-  return ignored
+  return { ignored, matched }
 }
 
 /**
@@ -251,6 +268,24 @@ async function resolveGitInfoExcludePath(repoRoot: string) {
     const resolvedGitDir = isAbsolute(gitdir)
       ? gitdir
       : resolve(repoRoot, gitdir)
+    const commonDirPath = join(resolvedGitDir, 'commondir')
+
+    try {
+      const commonDirContent = await readFile(commonDirPath, 'utf8')
+      const commonDir = commonDirContent.trim()
+      if (commonDir) {
+        const resolvedCommonDir = isAbsolute(commonDir)
+          ? commonDir
+          : resolve(resolvedGitDir, commonDir)
+        return join(resolvedCommonDir, 'info', 'exclude')
+      }
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+        throw error
+      }
+    }
+
     return join(resolvedGitDir, 'info', 'exclude')
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
@@ -404,11 +439,16 @@ export async function isOxfmtIgnored(
   const gitignoreEntries = [...gitignorePaths].reverse().map(path => ({
     path,
   }))
-  if (await matchIgnoreFileChain(filepath, gitignoreEntries, useCache)) {
+  const gitignoreResult = await matchIgnoreFileChain(
+    filepath,
+    gitignoreEntries,
+    useCache,
+  )
+  if (gitignoreResult.ignored) {
     return { ignored: true, reason: 'gitignore' }
   }
 
-  if (repoRoot) {
+  if (repoRoot && !gitignoreResult.matched) {
     const infoExcludePath = await resolveGitInfoExcludePath(repoRoot)
     if (
       infoExcludePath &&
@@ -420,7 +460,12 @@ export async function isOxfmtIgnored(
 
   if (explicitIgnorePaths && explicitIgnorePaths.length > 0) {
     const explicitIgnoreEntries = explicitIgnorePaths.map(path => ({ path }))
-    if (await matchIgnoreFileChain(filepath, explicitIgnoreEntries, useCache)) {
+    const explicitIgnoreResult = await matchIgnoreFileChain(
+      filepath,
+      explicitIgnoreEntries,
+      useCache,
+    )
+    if (explicitIgnoreResult.ignored) {
       return { ignored: true, reason: 'ignore-path' }
     }
   } else {

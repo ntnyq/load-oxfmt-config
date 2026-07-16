@@ -294,6 +294,30 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
+  it('lets .gitignore negation override .git/info/exclude', async () => {
+    await withTempDir('oxfmt-ignore-git-source-precedence-', async cwd => {
+      const filepath = join(cwd, 'src', 'keep.ts')
+
+      await mkdir(join(cwd, '.git', 'info'), { recursive: true })
+      await mkdir(join(cwd, 'src'), { recursive: true })
+      await writeFile(
+        join(cwd, '.git', 'info', 'exclude'),
+        'src/keep.ts\n',
+        'utf8',
+      )
+      await writeFile(join(cwd, '.gitignore'), '!src/keep.ts\n', 'utf8')
+      await writeFile(filepath, 'export const keep = true\n', 'utf8')
+
+      const result = await isOxfmtIgnored({
+        cwd,
+        filepath,
+        useCache: false,
+      })
+
+      expect(result).toStrictEqual({ ignored: false })
+    })
+  })
+
   it('reads git info exclude from gitdir when .git is a file', async () => {
     await withTempDir('oxfmt-ignore-git-file-info-exclude-', async cwd => {
       const repoRoot = join(cwd, 'repo')
@@ -313,6 +337,38 @@ describe(isOxfmtIgnored, () => {
       const result = await isOxfmtIgnored({
         cwd: repoRoot,
         filepath,
+      })
+
+      expect(result).toStrictEqual({
+        ignored: true,
+        reason: 'git-info-exclude',
+      })
+    })
+  })
+
+  it('reads git info exclude from the common directory in a worktree', async () => {
+    await withTempDir('oxfmt-ignore-worktree-info-exclude-', async cwd => {
+      const repoRoot = join(cwd, 'repo')
+      const commonDir = join(cwd, 'main.git')
+      const gitDir = join(commonDir, 'worktrees', 'linked')
+      const filepath = join(repoRoot, 'src', 'excluded.ts')
+
+      await mkdir(join(commonDir, 'info'), { recursive: true })
+      await mkdir(gitDir, { recursive: true })
+      await mkdir(join(repoRoot, 'src'), { recursive: true })
+      await writeFile(join(repoRoot, '.git'), `gitdir: ${gitDir}\n`, 'utf8')
+      await writeFile(join(gitDir, 'commondir'), '../..\n', 'utf8')
+      await writeFile(
+        join(commonDir, 'info', 'exclude'),
+        'src/excluded.ts\n',
+        'utf8',
+      )
+      await writeFile(filepath, 'export const excluded = true\n', 'utf8')
+
+      const result = await isOxfmtIgnored({
+        cwd: repoRoot,
+        filepath,
+        useCache: false,
       })
 
       expect(result).toStrictEqual({
