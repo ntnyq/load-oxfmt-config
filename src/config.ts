@@ -307,7 +307,7 @@ async function importFreshJavaScriptConfigModule(
  * @returns Cache key for resolve cache.
  */
 export function getResolveCacheKey(cwd: string, configPath?: string): string {
-  return `${cwd}::${configPath || ''}`
+  return JSON.stringify([cwd, configPath ?? null])
 }
 
 /**
@@ -323,10 +323,11 @@ export function getConfigCacheKey(
   editorconfigPath: string | undefined,
   resolveKey: string,
 ): string {
-  const oxfmtKey = resolvedPath || `missing-oxfmt:${resolveKey}`
-  const editorconfigKey =
-    editorconfigPath || `missing-editorconfig:${resolveKey}`
-  return `${oxfmtKey}::${editorconfigKey}`
+  return JSON.stringify([
+    resolvedPath ?? null,
+    editorconfigPath ?? null,
+    resolveKey,
+  ])
 }
 
 /**
