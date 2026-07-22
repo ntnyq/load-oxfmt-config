@@ -56,7 +56,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@ntnyq/utils": "^0.16.1",
+    "@ntnyq/utils": "^0.18.1",
     "editorconfig": "^3.0.2",
     "ignore": "^7.0.6",
     "jiti": "^2.7.0",
@@ -66,19 +66,19 @@
     "@ntnyq/tsconfig": "^3.1.0",
     "@types/node": "^26.1.1",
     "@typescript/native-preview": "^7.0.0-dev.20260707.2",
-    "bumpp": "^11.1.0",
+    "bumpp": "^12.0.0",
     "changelogithub": "14.0.0",
     "husky": "^9.1.7",
     "nano-staged": "^1.0.2",
     "npm": "11.18.0",
     "npm-run-all2": "^9.0.2",
-    "oxfmt": "^0.59.0",
-    "oxlint": "^1.74.0",
-    "tsdown": "^0.22.8",
+    "oxfmt": "^0.60.0",
+    "oxlint": "^1.75.0",
+    "tsdown": "^0.22.13",
     "vitest": "^4.1.10"
   },
   "peerDependencies": {
-    "oxfmt": ">=0.59.0"
+    "oxfmt": ">=0.60.0"
   },
   "nano-staged": {
     "*.{js,ts,mjs,tsx}": "oxlint --fix",
@@ -87,5 +87,5 @@
   "engines": {
     "node": "^22.13.0 || >=24"
   },
-  "packageManager": "pnpm@11.13.1"
+  "packageManager": "pnpm@11.15.1"
 }
