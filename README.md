@@ -516,8 +516,9 @@ The caching system maintains two separate caches:
 
 - Failed operations automatically clear their cache entries
 - Use `useCache: false` to bypass cache for specific calls
+- Each process-level cache retains at most 1,000 least-recently used entries
 - For native ESM config files (`.mjs` or `.js` under `"type": "module"`), `useCache: false` cache-busts the entry config file. Imported ESM helper modules still follow Node.js module cache behavior for the current process.
-- Cache persists for the lifetime of the Node.js process
+- Cache entries persist until least-recently used eviction or process exit
 
 ## Related
 

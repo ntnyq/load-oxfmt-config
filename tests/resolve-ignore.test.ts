@@ -268,6 +268,28 @@ describe(isOxfmtIgnored, () => {
     })
   })
 
+  it('does not read nested .gitignore files inside ignored directories', async () => {
+    await withTempDir('oxfmt-ignore-ignored-parent-dir-', async cwd => {
+      const repoRoot = join(cwd, 'repo')
+      const packageDir = join(repoRoot, 'packages', 'app')
+      const filepath = join(packageDir, 'src', 'keep.ts')
+
+      await mkdir(join(repoRoot, '.git'), { recursive: true })
+      await mkdir(join(packageDir, 'src'), { recursive: true })
+      await writeFile(join(repoRoot, '.gitignore'), 'packages/app/\n', 'utf8')
+      await writeFile(join(packageDir, '.gitignore'), '!src/keep.ts\n', 'utf8')
+      await writeFile(filepath, 'export const keep = true\n', 'utf8')
+
+      const result = await isOxfmtIgnored({
+        cwd: repoRoot,
+        filepath,
+        useCache: false,
+      })
+
+      expect(result).toStrictEqual({ ignored: true, reason: 'gitignore' })
+    })
+  })
+
   it('reads .git/info/exclude from repo root', async () => {
     await withTempDir('oxfmt-ignore-git-info-exclude-', async cwd => {
       const repoRoot = join(cwd, 'repo')

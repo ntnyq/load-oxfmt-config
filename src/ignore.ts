@@ -13,7 +13,14 @@ import type { Ignore } from 'ignore'
 import { DEFAULT_IGNORED_DIRS, DEFAULT_IGNORED_LOCKFILES } from './constants'
 import { loadOxfmtConfig } from './core'
 import type { IsOxfmtIgnoredOptions, IsOxfmtIgnoredResult } from './types'
-import { cachePromise, splitPathSegments, toPosixPath } from './utils'
+import {
+  cachePromise,
+  getCacheValue,
+  isPathOutsideBase,
+  setCacheValue,
+  splitPathSegments,
+  toPosixPath,
+} from './utils'
 
 /**
  * Cache parsed ignore file matchers by ignore file path.
@@ -51,6 +58,20 @@ interface IgnoreFileChainResult {
    * Whether any ignore or negation rule matched the file.
    */
   matched: boolean
+}
+
+/**
+ * Loaded ignore matcher with its path matching base.
+ */
+interface LoadedIgnoreMatcher {
+  /**
+   * Directory used to compute relative paths before matching.
+   */
+  baseDir: string
+  /**
+   * Compiled ignore matcher.
+   */
+  matcher: Ignore
 }
 
 /**
@@ -151,7 +172,7 @@ async function matchIgnoreFile(
     baseDir ?? dirname(ignoreFilePath),
     filepath,
   )
-  if (relativeToIgnore === '..' || relativeToIgnore.startsWith('../')) {
+  if (isPathOutsideBase(relativeToIgnore)) {
     return false
   }
 
@@ -159,36 +180,32 @@ async function matchIgnoreFile(
 }
 
 /**
- * Match a file path against ordered ignore files while preserving negation state.
+ * Match a path against loaded ignore matchers in precedence order.
  *
- * @param filepath - Absolute file path.
- * @param ignoreFileEntries - Ignore files in increasing precedence order.
- * @param useCache - Whether to use matcher cache.
- * @returns True when the ordered ignore files mark the file as ignored.
+ * @param filepath - Absolute file or directory path to test.
+ * @param matcherEntries - Loaded matchers in increasing precedence order.
+ * @param isDirectory - Whether the target path is a directory.
+ * @returns Final ignore state after all matching rules.
  */
-async function matchIgnoreFileChain(
+function matchLoadedIgnoreMatchers(
   filepath: string,
-  ignoreFileEntries: IgnoreFileEntry[],
-  useCache: boolean,
-): Promise<IgnoreFileChainResult> {
+  matcherEntries: LoadedIgnoreMatcher[],
+  isDirectory = false,
+): IgnoreFileChainResult {
   let ignored = false
   let matched = false
 
-  for (const entry of ignoreFileEntries) {
-    const matcher = await loadIgnoreMatcher(entry.path, useCache)
-    if (!matcher) {
+  for (const entry of matcherEntries) {
+    let relativeToIgnore = relativeSafe(entry.baseDir, filepath)
+    if (isPathOutsideBase(relativeToIgnore)) {
       continue
     }
 
-    const relativeToIgnore = relativeSafe(
-      entry.baseDir ?? dirname(entry.path),
-      filepath,
-    )
-    if (relativeToIgnore === '..' || relativeToIgnore.startsWith('../')) {
-      continue
+    if (isDirectory && relativeToIgnore && !relativeToIgnore.endsWith('/')) {
+      relativeToIgnore += '/'
     }
 
-    const result = matcher.test(relativeToIgnore)
+    const result = entry.matcher.test(relativeToIgnore)
     if (result.ignored) {
       ignored = true
       matched = true
@@ -199,6 +216,41 @@ async function matchIgnoreFileChain(
   }
 
   return { ignored, matched }
+}
+
+/**
+ * Match a file path against ordered ignore files while preserving negation state.
+ *
+ * @param filepath - Absolute file path.
+ * @param ignoreFileEntries - Ignore files in increasing precedence order.
+ * @param useCache - Whether to use matcher cache.
+ * @param stopAtIgnoredDirectory - Whether ignored directories prevent reading nested ignore files.
+ * @returns True when the ordered ignore files mark the file as ignored.
+ */
+async function matchIgnoreFileChain(
+  filepath: string,
+  ignoreFileEntries: IgnoreFileEntry[],
+  useCache: boolean,
+  stopAtIgnoredDirectory = false,
+): Promise<IgnoreFileChainResult> {
+  const matcherEntries: LoadedIgnoreMatcher[] = []
+
+  for (const entry of ignoreFileEntries) {
+    const baseDir = entry.baseDir ?? dirname(entry.path)
+    if (
+      stopAtIgnoredDirectory &&
+      matchLoadedIgnoreMatchers(baseDir, matcherEntries, true).ignored
+    ) {
+      break
+    }
+
+    const matcher = await loadIgnoreMatcher(entry.path, useCache)
+    if (matcher) {
+      matcherEntries.push({ baseDir, matcher })
+    }
+  }
+
+  return matchLoadedIgnoreMatchers(filepath, matcherEntries)
 }
 
 /**
@@ -389,7 +441,7 @@ function matchConfigIgnorePatterns(
   validateConfigIgnorePatterns(patterns)
 
   const relativeFile = relativeSafe(configDir, filepath)
-  if (relativeFile === '..' || relativeFile.startsWith('../')) {
+  if (isPathOutsideBase(relativeFile)) {
     return false
   }
 
@@ -398,13 +450,13 @@ function matchConfigIgnorePatterns(
   }
 
   const cacheKey = `${configDir}::${JSON.stringify(patterns)}`
-  const cachedMatcher = configIgnoreMatcherCache.get(cacheKey)
+  const cachedMatcher = getCacheValue(configIgnoreMatcherCache, cacheKey)
   if (cachedMatcher) {
     return cachedMatcher.ignores(relativeFile)
   }
 
   const matcher = ignore().add(patterns)
-  configIgnoreMatcherCache.set(cacheKey, matcher)
+  setCacheValue(configIgnoreMatcherCache, cacheKey, matcher)
   return matcher.ignores(relativeFile)
 }
 
@@ -466,6 +518,7 @@ export async function isOxfmtIgnored(
     filepath,
     gitignoreEntries,
     useCache,
+    true,
   )
   if (gitignoreResult.ignored) {
     return { ignored: true, reason: 'gitignore' }

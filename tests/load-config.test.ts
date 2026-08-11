@@ -554,6 +554,60 @@ describe(loadOxfmtConfig, () => {
       })
     })
 
+    it('does not retry runtime SyntaxErrors through JavaScript fallbacks', async () => {
+      await withTempDir('oxfmt-config-js-syntax-error-', async cwd => {
+        const configPath = join(cwd, 'oxfmt.config.js')
+        const counterPath = join(cwd, 'counter.txt')
+
+        await writeFile(counterPath, '0', 'utf8')
+        await writeFile(
+          configPath,
+          [
+            "const { readFileSync, writeFileSync } = require('node:fs')",
+            `const counterPath = ${JSON.stringify(counterPath)}`,
+            "const count = Number(readFileSync(counterPath, 'utf8'))",
+            'writeFileSync(counterPath, String(count + 1))',
+            'throw new SyntaxError("Unexpected token \'export\'")',
+            '',
+          ].join('\n'),
+          'utf8',
+        )
+
+        await expect(
+          loadOxfmtConfig({
+            cwd,
+            configPath,
+            editorconfig: false,
+            useCache: false,
+          }),
+        ).rejects.toThrow(/Unexpected token 'export'/u)
+
+        await expect(readFile(counterPath, 'utf8')).resolves.toBe('1')
+      })
+    })
+
+    it('falls back for module syntax errors in CommonJS .js files', async () => {
+      await withTempDir('oxfmt-config-js-module-syntax-', async cwd => {
+        const configPath = join(cwd, 'oxfmt.config.js')
+
+        await writeFile(join(cwd, 'package.json'), '{"type":"commonjs"}\n')
+        await writeFile(
+          configPath,
+          'export default { printWidth: 87 }\n',
+          'utf8',
+        )
+
+        const result = await loadOxfmtConfig({
+          cwd,
+          configPath,
+          editorconfig: false,
+          useCache: false,
+        })
+
+        expect(result.config.printWidth).toBe(87)
+      })
+    })
+
     it('reuses unchanged native ESM config module URL when useCache is false', async () => {
       await withTempDir('oxfmt-config-js-esm-cache-key-', async cwd => {
         const globals = globalThis as typeof globalThis & {
@@ -1044,6 +1098,35 @@ describe(loadOxfmtConfig, () => {
         )
       })
     })
+
+    it.each([
+      ['function', 'export default () => ({ printWidth: 98 })\n'],
+      ['Date', 'export default new Date()\n'],
+      ['Map', 'export default new Map()\n'],
+      ['Promise', 'export default Promise.resolve({})\n'],
+    ])(
+      'throws when explicit JS config exports a %s',
+      async (_name, content) => {
+        await withTempDir(
+          'oxfmt-config-explicit-js-invalid-object-',
+          async cwd => {
+            const configPath = join(cwd, 'custom.config.mjs')
+            await writeFile(configPath, content, 'utf8')
+
+            await expect(
+              loadOxfmtConfig({
+                cwd,
+                configPath,
+                useCache: false,
+                editorconfig: false,
+              }),
+            ).rejects.toThrow(
+              /Configuration file must have a default export that is an object/u,
+            )
+          },
+        )
+      },
+    )
 
     it('loads explicit .json and .jsonc config path with custom filename', async () => {
       await withTempDir('oxfmt-config-explicit-json-', async cwd => {

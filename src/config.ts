@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFile, stat } from 'node:fs/promises'
+import { readFile, realpath, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { extname, isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -8,7 +8,6 @@ import {
   isUndefined,
   isString,
   isObject,
-  isRecord,
   hasOwn,
 } from '@ntnyq/utils'
 import type { ParseError } from 'jsonc-parser'
@@ -18,7 +17,7 @@ import {
   OXFMT_EXPLICIT_CONFIG_EXTENSIONS,
 } from './constants'
 import type { OxfmtOptions } from './types'
-import { splitPathSegments } from './utils'
+import { getCacheValue, setCacheValue, splitPathSegments } from './utils'
 
 /**
  * CommonJS require scoped to this ESM module for loading `.cjs` config files.
@@ -62,7 +61,12 @@ const freshJavaScriptModuleCache = new Map<
  * @returns True when the value can be treated as an oxfmt options object.
  */
 function isConfigObject(value: unknown): value is OxfmtOptions {
-  return isRecord(value)
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false
+  }
+
+  const prototype = Object.getPrototypeOf(value)
+  return prototype === Object.prototype || prototype === null
 }
 
 /**
@@ -164,9 +168,13 @@ function getErrorCode(error: unknown): string | undefined {
  * Check whether a loader error should continue the JS config fallback chain.
  *
  * @param error - Thrown value from require or native import.
+ * @param resolvedPaths - Entry module paths that may appear in parser errors.
  * @returns True when the error is from loader compatibility, not config execution.
  */
-function isJavaScriptLoaderFallbackError(error: unknown): boolean {
+function isJavaScriptLoaderFallbackError(
+  error: unknown,
+  resolvedPaths: string[],
+): boolean {
   const code = getErrorCode(error)
   if (code && requireFallbackErrorCodes.has(code)) {
     return true
@@ -174,6 +182,9 @@ function isJavaScriptLoaderFallbackError(error: unknown): boolean {
 
   return (
     error instanceof SyntaxError &&
+    resolvedPaths.some(
+      resolvedPath => error.stack?.startsWith(`${resolvedPath}:`) === true,
+    ) &&
     syntaxFallbackMessages.some(pattern => pattern.test(error.message))
   )
 }
@@ -260,15 +271,23 @@ function requireFreshCommonJSConfig(resolvedPath: string): OxfmtOptions {
 async function importFreshJavaScriptConfigModule(
   resolvedPath: string,
 ): Promise<Record<string, unknown>> {
+  const canonicalPath = await realpath(resolvedPath)
+  const loaderPaths =
+    canonicalPath === resolvedPath
+      ? [resolvedPath]
+      : [resolvedPath, canonicalPath]
   const cacheKey = await getFreshImportCacheKey(resolvedPath)
-  const cachedModule = freshJavaScriptModuleCache.get(resolvedPath)
+  const cachedModule = getCacheValue(freshJavaScriptModuleCache, resolvedPath)
   if (cachedModule?.cacheKey === cacheKey) {
     return cachedModule.namespace
   }
 
   if (cachedModule) {
     const namespace = await importNativeFreshModule(resolvedPath)
-    freshJavaScriptModuleCache.set(resolvedPath, { cacheKey, namespace })
+    setCacheValue(freshJavaScriptModuleCache, resolvedPath, {
+      cacheKey,
+      namespace,
+    })
     return namespace
   }
 
@@ -276,22 +295,28 @@ async function importFreshJavaScriptConfigModule(
     const configModule = requireFreshModule(resolvedPath)
     if (Object.prototype.toString.call(configModule) === '[object Module]') {
       const namespace = configModule as Record<string, unknown>
-      freshJavaScriptModuleCache.set(resolvedPath, { cacheKey, namespace })
+      setCacheValue(freshJavaScriptModuleCache, resolvedPath, {
+        cacheKey,
+        namespace,
+      })
       return namespace
     }
 
     return { default: readConfigModuleExports(configModule) }
   } catch (error) {
-    if (!isJavaScriptLoaderFallbackError(error)) {
+    if (!isJavaScriptLoaderFallbackError(error, loaderPaths)) {
       throw error
     }
 
     try {
       const namespace = await importNativeFreshModule(resolvedPath)
-      freshJavaScriptModuleCache.set(resolvedPath, { cacheKey, namespace })
+      setCacheValue(freshJavaScriptModuleCache, resolvedPath, {
+        cacheKey,
+        namespace,
+      })
       return namespace
     } catch (importError) {
-      if (!isJavaScriptLoaderFallbackError(importError)) {
+      if (!isJavaScriptLoaderFallbackError(importError, loaderPaths)) {
         throw importError
       }
 
