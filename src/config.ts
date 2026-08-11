@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFile, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { extname, isAbsolute, join, resolve } from 'node:path'
@@ -137,14 +138,14 @@ async function importJitiConfigModule(
 }
 
 /**
- * Build a cache-busting import key from entry file metadata.
+ * Build a cache-busting import key from entry file contents.
  *
  * @param resolvedPath - Absolute config file path.
- * @returns Stable key that changes when the entry file mtime or size changes.
+ * @returns Stable key that changes when the entry file contents change.
  */
 async function getFreshImportCacheKey(resolvedPath: string) {
-  const stats = await stat(resolvedPath, { bigint: true })
-  return `${stats.mtimeNs}:${stats.size}`
+  const content = await readFile(resolvedPath)
+  return createHash('sha256').update(content).digest('hex')
 }
 
 /**

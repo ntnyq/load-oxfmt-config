@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, utimes, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -295,9 +295,10 @@ describe(loadOxfmtConfig, () => {
       })
     })
 
-    it('reloads changed ESM .js config when useCache is false', async () => {
+    it('reloads same-size changed ESM .js config when mtime is unchanged', async () => {
       await withTempDir('oxfmt-config-js-esm-cache-bypass-', async cwd => {
         const configPath = join(cwd, 'oxfmt.config.js')
+        const configMtime = new Date('2026-01-01T00:00:00.000Z')
         await writeFile(
           join(cwd, 'package.json'),
           '{"type":"module"}\n',
@@ -308,6 +309,7 @@ describe(loadOxfmtConfig, () => {
           'export default { printWidth: 79 }\n',
           'utf8',
         )
+        await utimes(configPath, configMtime, configMtime)
 
         const first = await loadOxfmtConfig({
           cwd,
@@ -321,6 +323,7 @@ describe(loadOxfmtConfig, () => {
           'export default { printWidth: 80 }\n',
           'utf8',
         )
+        await utimes(configPath, configMtime, configMtime)
 
         const second = await loadOxfmtConfig({
           cwd,
