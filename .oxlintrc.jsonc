@@ -22,6 +22,7 @@
   "ignorePatterns": ["**/dist/**", "**/node_modules/**", "**/fixtures/**"],
   "rules": {
     "capitalized-comments": "off",
+    "one-var": "off",
     "no-async-await": "off",
     "no-await-in-loop": "off",
     "no-continue": "off",
